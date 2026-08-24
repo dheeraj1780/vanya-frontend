@@ -19,6 +19,10 @@ class Plant {
   final bool? isAirPurifying;
   final String? careDifficulty;
   final DateTime createdAt;
+  // Growth Journey's background for this plant — "preset:<key>" (a
+  // bundled app asset) or a real photo URL (custom gallery pick); null if
+  // never chosen. See GrowthJourneyScreen's background picker.
+  final String? growthBackground;
 
   Plant({
     required this.id,
@@ -36,6 +40,7 @@ class Plant {
     this.isAirPurifying,
     this.careDifficulty,
     required this.createdAt,
+    this.growthBackground,
   });
 
   factory Plant.fromJson(Map<String, dynamic> json) => Plant(
@@ -54,6 +59,7 @@ class Plant {
         isAirPurifying: json['is_air_purifying'],
         careDifficulty: json['care_difficulty'],
         createdAt: DateTime.parse(json['created_at']),
+        growthBackground: json['growth_background'],
       );
 
   /// Next date this plant is due for watering — never watered yet counts as
@@ -66,7 +72,7 @@ class Plant {
   /// Client-side copy used only for the optimistic "mark watered" update in
   /// HomeScreen/PlantDetailScreen — the server write still happens via the
   /// API client, this just keeps the UI responsive while that's in flight.
-  Plant copyWith({DateTime? lastWateredAt, String? photoUrl, String? status}) => Plant(
+  Plant copyWith({DateTime? lastWateredAt, String? photoUrl, String? status, String? growthBackground}) => Plant(
         id: id,
         status: status ?? this.status,
         nickname: nickname,
@@ -82,6 +88,7 @@ class Plant {
         isAirPurifying: isAirPurifying,
         careDifficulty: careDifficulty,
         createdAt: createdAt,
+        growthBackground: growthBackground ?? this.growthBackground,
       );
 }
 

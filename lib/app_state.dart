@@ -467,6 +467,20 @@ class AppState extends ChangeNotifier {
     goTo('myPlants');
   }
 
+  /// Replaces one plant in-place, in whichever of plants/wishlist actually
+  /// holds it (a plant is never in both) — the generic version of the
+  /// copyWith-then-splice pattern handleMarkWatered/etc. each do inline for
+  /// their own one field. Used by GrowthJourneyScreen's background picker,
+  /// which needs to update growthBackground without touching anything else.
+  void updatePlantLocally(Plant updated) {
+    if (plants.any((p) => p.id == updated.id)) {
+      plants = plants.map((p) => p.id == updated.id ? updated : p).toList();
+    } else if (wishlist.any((p) => p.id == updated.id)) {
+      wishlist = wishlist.map((p) => p.id == updated.id ? updated : p).toList();
+    }
+    notifyListeners();
+  }
+
   /// Same DELETE /plants/:id as handleDeletePlant, but for a wishlist card
   /// removed inline (no detail screen, no navigation afterward) — never had
   /// a reminder scheduled in the first place, since wishlist plants aren't

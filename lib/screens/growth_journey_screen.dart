@@ -12,6 +12,27 @@ import '../widgets/image_source_sheet.dart';
 import '../widgets/plant_image.dart';
 import '../widgets/primary_button.dart';
 
+/// Bundled Growth Journey background options — key must match one of
+/// plant_service._GROWTH_BACKGROUND_PRESETS on the backend exactly.
+/// assetPath points at a file this repo doesn't have yet; until it's added
+/// (see BackgroundPickerSheet's swatch fallback), the picker still shows a
+/// plain color swatch instead of a broken image.
+class GrowthBackgroundPreset {
+  final String key;
+  final String label;
+  final String assetPath;
+  final Color swatchColor;
+  const GrowthBackgroundPreset({required this.key, required this.label, required this.assetPath, required this.swatchColor});
+}
+
+const List<GrowthBackgroundPreset> kGrowthBackgroundPresets = [
+  GrowthBackgroundPreset(key: 'pressed_journal', label: 'Pressed Journal', assetPath: 'assets/images/growth_bg_pressed_journal.png', swatchColor: Color(0xFFE9E2D2)),
+  GrowthBackgroundPreset(key: 'golden_hour', label: 'Golden Hour', assetPath: 'assets/images/growth_bg_golden_hour.png', swatchColor: Color(0xFFF3E3D3)),
+  GrowthBackgroundPreset(key: 'greenhouse', label: 'Greenhouse', assetPath: 'assets/images/growth_bg_greenhouse.png', swatchColor: Color(0xFFE7EEE6)),
+  GrowthBackgroundPreset(key: 'nature_diary', label: 'Nature Diary', assetPath: 'assets/images/growth_bg_nature_diary.png', swatchColor: Color(0xFFDCEBE0)),
+  GrowthBackgroundPreset(key: 'forest_dusk', label: 'Forest Dusk', assetPath: 'assets/images/growth_bg_forest_dusk.png', swatchColor: Color(0xFF1C231C)),
+];
+
 /// Growth Journey — a plant's growth timeline as a winding vine, one dated
 /// photo "memory" per node. Green Thumb-and-up feature (see plans.dart);
 /// works for wishlist plants too, same as diagnose/photo-upload elsewhere.
@@ -108,6 +129,45 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
     }
   }
 
+  /// Lets the user pick one of the app's bundled backgrounds or a photo
+  /// from their own gallery — not tier-gated (see the backend's
+  /// set_growth_background), so this works even before upgrading.
+  Future<void> _handleChangeBackground() async {
+    final appState = context.read<AppState>();
+    final plant = appState.growthJourneyPlant;
+    if (plant == null) return;
+
+    final choice = await showModalBottomSheet<_BackgroundChoice>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _BackgroundPickerSheet(current: plant.growthBackground),
+    );
+    if (choice == null) return;
+
+    String? imageBase64;
+    if (choice.fromGallery) {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1024);
+      if (file == null) return;
+      imageBase64 = base64Encode(await File(file.path).readAsBytes());
+    }
+
+    try {
+      final newValue = await appState.api.setGrowthBackground(
+        appState.token!,
+        plant.id,
+        preset: choice.presetKey,
+        imageBase64: imageBase64,
+      );
+      appState.updatePlantLocally(plant.copyWith(growthBackground: newValue));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not update the background. Try again.')));
+      }
+    }
+  }
+
   Future<void> _handleDelete(GrowthMemory memory) async {
     final appState = context.read<AppState>();
     final plant = appState.growthJourneyPlant;
@@ -162,6 +222,11 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
         title: const Text('Growth Journey'),
         actions: [
           IconButton(
+            tooltip: 'Change background',
+            onPressed: plant == null ? null : _handleChangeBackground,
+            icon: const Icon(Icons.wallpaper_outlined),
+          ),
+          IconButton(
             tooltip: 'Add a memory',
             onPressed: plant == null ? null : _handleAdd,
             icon: const Icon(Icons.add_circle_outline),
@@ -202,7 +267,7 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
                             ],
                           ),
                         ),
-                        Expanded(child: _VineView(memories: _memories, onTapNode: _openDetail)),
+                        Expanded(child: _VineView(memories: _memories, onTapNode: _openDetail, background: plant.growthBackground)),
                       ],
                     ),
     );
@@ -214,7 +279,10 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
 class _VineView extends StatelessWidget {
   final List<GrowthMemory> memories;
   final ValueChanged<GrowthMemory> onTapNode;
-  const _VineView({required this.memories, required this.onTapNode});
+  // "preset:<key>" (a bundled asset), a real photo URL (custom gallery
+  // pick), or null (nothing chosen yet — falls back to no texture).
+  final String? background;
+  const _VineView({required this.memories, required this.onTapNode, this.background});
 
   static const double _nodeSpacing = 175;
   static const double _sideOffset = 58;
@@ -257,16 +325,10 @@ class _VineView extends StatelessWidget {
             children: [
               // Background texture — tiles vertically so it stays
               // continuous no matter how tall the timeline grows. Falls
-              // back to nothing (plain scaffold background) until
-              // assets/images/growth_vine_background.png actually exists.
+              // back to nothing (plain scaffold background) if the chosen
+              // asset/photo isn't available (or nothing's been chosen yet).
               Positioned.fill(
-                child: Image.asset(
-                  'assets/images/growth_vine_background.png',
-                  repeat: ImageRepeat.repeatY,
-                  fit: BoxFit.fitWidth,
-                  alignment: Alignment.topCenter,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                ),
+                child: _resolveBackground(),
               ),
               CustomPaint(
                 size: Size(width, totalHeight),
@@ -377,6 +439,39 @@ class _VineView extends StatelessWidget {
 
   static const _months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   String _formatDate(DateTime d) => '${_months[d.month - 1]} ${d.day}';
+
+  /// null -> nothing (plain scaffold background shows through); "preset:x"
+  /// -> the matching bundled asset; anything else -> treated as a real
+  /// photo URL (a custom gallery pick). Either way, a load failure just
+  /// falls back to nothing rather than a broken-image icon.
+  Widget _resolveBackground() {
+    if (background == null) return const SizedBox.shrink();
+    if (background!.startsWith('preset:')) {
+      final key = background!.substring('preset:'.length);
+      GrowthBackgroundPreset? preset;
+      for (final p in kGrowthBackgroundPresets) {
+        if (p.key == key) {
+          preset = p;
+          break;
+        }
+      }
+      if (preset == null) return const SizedBox.shrink();
+      return Image.asset(
+        preset.assetPath,
+        repeat: ImageRepeat.repeatY,
+        fit: BoxFit.fitWidth,
+        alignment: Alignment.topCenter,
+        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+      );
+    }
+    return Image.network(
+      background!,
+      repeat: ImageRepeat.repeatY,
+      fit: BoxFit.fitWidth,
+      alignment: Alignment.topCenter,
+      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+    );
+  }
 }
 
 class _VinePainter extends CustomPainter {
@@ -588,6 +683,119 @@ class _AddMemorySheetState extends State<_AddMemorySheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// What the picker sheet resolves to — exactly one of the two, mirroring
+/// GrowthBackgroundInput's "exactly one of preset/image_base64" contract
+/// on the backend.
+class _BackgroundChoice {
+  final String? presetKey;
+  final bool fromGallery;
+  const _BackgroundChoice.preset(this.presetKey) : fromGallery = false;
+  const _BackgroundChoice.gallery()
+      : presetKey = null,
+        fromGallery = true;
+}
+
+class _BackgroundPickerSheet extends StatelessWidget {
+  final String? current;
+  const _BackgroundPickerSheet({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 18),
+              decoration: BoxDecoration(color: AppColors.borderOf(context), borderRadius: BorderRadius.circular(999)),
+            ),
+          ),
+          Text('Choose a background', style: AppTypography.h2(AppColors.textOf(context))),
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.85,
+            children: [
+              for (final preset in kGrowthBackgroundPresets)
+                _PresetTile(
+                  preset: preset,
+                  selected: current == 'preset:${preset.key}',
+                  onTap: () => Navigator.of(context).pop(_BackgroundChoice.preset(preset.key)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: AppColors.primaryTintPairOf(context).$1, borderRadius: BorderRadius.circular(AppRadius.sm)),
+              child: Icon(Icons.photo_library_outlined, size: 18, color: AppColors.primaryTintPairOf(context).$2),
+            ),
+            title: Text('Choose from your photos', style: AppTypography.bodyStrong(AppColors.textOf(context))),
+            onTap: () => Navigator.of(context).pop(const _BackgroundChoice.gallery()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PresetTile extends StatelessWidget {
+  final GrowthBackgroundPreset preset;
+  final bool selected;
+  final VoidCallback onTap;
+  const _PresetTile({required this.preset, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: selected ? AppColors.primary : AppColors.borderOf(context), width: selected ? 2.5 : 1),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(
+                preset.assetPath,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(color: preset.swatchColor),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            preset.label,
+            style: AppTypography.caption(AppColors.textSecondaryOf(context)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

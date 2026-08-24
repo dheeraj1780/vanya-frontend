@@ -175,6 +175,19 @@ class ApiClient {
   Future<void> deleteGrowthMemory(String token, String plantId, String memoryId) =>
       _request('/plants/$plantId/growth-memories/$memoryId', method: 'DELETE', token: token);
 
+  /// Exactly one of preset/imageBase64 — see GrowthBackgroundInput in
+  /// schemas/plant.py. Returns the new growth_background value to store
+  /// on the local Plant (either `"preset:<key>"` or the uploaded photo's URL).
+  Future<String?> setGrowthBackground(String token, String plantId, {String? preset, String? imageBase64}) async {
+    final data = await _request(
+      '/plants/$plantId/growth-background',
+      method: 'PUT',
+      token: token,
+      body: {if (preset != null) 'preset': preset, if (imageBase64 != null) 'image_base64': imageBase64},
+    );
+    return data['growth_background'];
+  }
+
   Future<DiagnosisResult?> getLatestDiagnosis(String token, String plantId) async {
     final data = await _request('/plants/$plantId/diagnoses/latest', token: token);
     if (data['has_diagnosis'] != true) return null;

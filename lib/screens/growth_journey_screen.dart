@@ -31,6 +31,11 @@ const List<GrowthBackgroundPreset> kGrowthBackgroundPresets = [
   GrowthBackgroundPreset(key: 'greenhouse', label: 'Greenhouse', assetPath: 'assets/images/growth_bg_greenhouse.png', swatchColor: Color(0xFFE7EEE6)),
   GrowthBackgroundPreset(key: 'nature_diary', label: 'Nature Diary', assetPath: 'assets/images/growth_bg_nature_diary.png', swatchColor: Color(0xFFDCEBE0)),
   GrowthBackgroundPreset(key: 'forest_dusk', label: 'Forest Dusk', assetPath: 'assets/images/growth_bg_forest_dusk.png', swatchColor: Color(0xFF1C231C)),
+  GrowthBackgroundPreset(key: 'gothic', label: 'Gothic Botanical', assetPath: 'assets/images/growth_bg_gothic.png', swatchColor: Color(0xFF12160F)),
+  GrowthBackgroundPreset(key: 'desi_heritage', label: 'Desi Heritage', assetPath: 'assets/images/growth_bg_desi_heritage.png', swatchColor: Color(0xFFEFC9A0)),
+  GrowthBackgroundPreset(key: 'rainforest', label: 'Rainforest', assetPath: 'assets/images/growth_bg_rainforest.png', swatchColor: Color(0xFF1F3D30)),
+  GrowthBackgroundPreset(key: 'ink_wash', label: 'Ink Wash Garden', assetPath: 'assets/images/growth_bg_ink_wash.png', swatchColor: Color(0xFFF0EDE4)),
+  GrowthBackgroundPreset(key: 'heirloom_tapestry', label: 'Heirloom Tapestry', assetPath: 'assets/images/growth_bg_heirloom_tapestry.png', swatchColor: Color(0xFFD9C2A0)),
 ];
 
 /// Growth Journey — a plant's growth timeline as a winding vine, one dated

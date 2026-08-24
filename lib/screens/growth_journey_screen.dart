@@ -221,6 +221,13 @@ class _VineView extends StatelessWidget {
   static const double _rootHeight = 130;
   static const double _tipHeight = 90;
   static const double _nodeSize = 72;
+  static const double _potWidth = 120;
+  static const double _potHeight = 96;
+  // How far down from the top of the pot's box the stem should actually
+  // terminate — the generated pot image (see the prompt this was built
+  // from) has generous padding around the pot itself, so the visual rim/
+  // soil line sits a bit below the box's very top edge, not at y=0.
+  static const double _potTopInset = 22;
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +237,10 @@ class _VineView extends StatelessWidget {
       final totalHeight = _rootHeight + _tipHeight + memories.length * _nodeSpacing + (memories.isEmpty ? 60 : 0);
 
       // Anchor points bottom-to-top: root -> oldest memory -> ... -> newest -> tip.
-      final anchors = <Offset>[Offset(center, totalHeight - _rootHeight / 2)];
+      // The root anchor sits near the TOP of the pot's box (where soil/rim
+      // is), not its vertical center — so the stem visually plugs into the
+      // pot instead of running through its middle (see _potHeight below).
+      final anchors = <Offset>[Offset(center, totalHeight - _rootHeight + _potTopInset)];
       for (int i = 0; i < memories.length; i++) {
         final x = center + (i.isEven ? -_sideOffset : _sideOffset);
         final y = totalHeight - _rootHeight - i * _nodeSpacing - _nodeSpacing / 2;
@@ -245,6 +255,19 @@ class _VineView extends StatelessWidget {
           height: totalHeight,
           child: Stack(
             children: [
+              // Background texture — tiles vertically so it stays
+              // continuous no matter how tall the timeline grows. Falls
+              // back to nothing (plain scaffold background) until
+              // assets/images/growth_vine_background.png actually exists.
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/growth_vine_background.png',
+                  repeat: ImageRepeat.repeatY,
+                  fit: BoxFit.fitWidth,
+                  alignment: Alignment.topCenter,
+                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                ),
+              ),
               CustomPaint(
                 size: Size(width, totalHeight),
                 painter: _VinePainter(
@@ -254,20 +277,28 @@ class _VineView extends StatelessWidget {
                   leafColor: AppColors.sage,
                 ),
               ),
-              // Root / pot
+              // Root / pot — painted after (so it visually sits in front
+              // of) the stem, which is what makes the vine look like it's
+              // growing out of it rather than passing behind/through it.
               Positioned(
-                left: center - 55,
+                left: center - _potWidth / 2,
                 top: totalHeight - _rootHeight,
                 child: SizedBox(
-                  width: 110,
+                  width: _potWidth,
                   child: Column(
                     children: [
-                      Container(
-                        width: 90,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                      Image.asset(
+                        'assets/images/growth_pot.png',
+                        width: _potWidth,
+                        height: _potHeight,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: _potWidth * 0.8,
+                          height: _potHeight * 0.55,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -318,9 +349,20 @@ class _VineView extends StatelessWidget {
                           child: ClipOval(child: PlantImage(url: memories[i].photoUrl, borderRadius: 999)),
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          _formatDate(memories[i].createdAt),
-                          style: AppTypography.caption(AppColors.textSecondaryOf(context)),
+                        // Small backdrop, not bare text — the stem's curve
+                        // sometimes passes directly behind a date label
+                        // (see the two side-offset node positions above),
+                        // which read as illegible without this.
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgOf(context).withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Text(
+                            _formatDate(memories[i].createdAt),
+                            style: AppTypography.caption(AppColors.textSecondaryOf(context)),
+                          ),
                         ),
                       ],
                     ),

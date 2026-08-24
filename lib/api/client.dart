@@ -98,6 +98,28 @@ class ApiClient {
 
   Future<void> signOut(String token) => _request('/auth/signout', method: 'POST', token: token);
 
+  /// Called after signIn() returns data['status'] == 'restorable' — same
+  /// identity, undoes the deletion instead of creating anything new.
+  Future<Map<String, dynamic>> restoreAccount(String provider, {String? identityToken, String? deviceUuid}) async {
+    final data = await _request('/auth/restore', method: 'POST', body: {
+      'provider': provider,
+      'identity_token': identityToken,
+      'device_uuid': deviceUuid,
+    });
+    return data as Map<String, dynamic>;
+  }
+
+  /// The other half of the restorable choice — explicitly gives up the
+  /// restore window and starts a brand-new account under the same identity.
+  Future<Map<String, dynamic>> restartAccount(String provider, {String? identityToken, String? deviceUuid}) async {
+    final data = await _request('/auth/restart', method: 'POST', body: {
+      'provider': provider,
+      'identity_token': identityToken,
+      'device_uuid': deviceUuid,
+    });
+    return data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> linkIdentity(String token, String identityToken) async {
     final data = await _request('/auth/link', method: 'POST', token: token, body: {'identity_token': identityToken});
     return data as Map<String, dynamic>;
@@ -278,5 +300,11 @@ class ApiClient {
     return data['reminders_enabled'];
   }
 
-  Future<void> deleteAccount(String token) => _request('/account', method: 'DELETE', token: token);
+  /// Returns the raw {"restorable_until": "..."} data — see
+  /// AppState.handleDeleteAccount, which parses it into a DateTime so the
+  /// caller can tell the user exactly how long they have to change their mind.
+  Future<Map<String, dynamic>> deleteAccount(String token) async {
+    final data = await _request('/account', method: 'DELETE', token: token);
+    return data as Map<String, dynamic>;
+  }
 }

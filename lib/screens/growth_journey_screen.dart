@@ -40,16 +40,16 @@ class GrowthBackgroundPreset {
 }
 
 const List<GrowthBackgroundPreset> kGrowthBackgroundPresets = [
-  GrowthBackgroundPreset(key: 'pressed_journal', label: 'Pressed Journal', assetPath: 'assets/images/growth_bg_pressed_journal.png', potAssetPath: 'assets/images/growth_pot_pressed_journal.png', swatchColor: Color(0xFFE9E2D2)),
-  GrowthBackgroundPreset(key: 'golden_hour', label: 'Golden Hour', assetPath: 'assets/images/growth_bg_golden_hour.png', potAssetPath: 'assets/images/growth_pot_golden_hour.png', swatchColor: Color(0xFFF3E3D3)),
-  GrowthBackgroundPreset(key: 'greenhouse', label: 'Greenhouse', assetPath: 'assets/images/growth_bg_greenhouse.png', potAssetPath: 'assets/images/growth_pot_greenhouse.png', swatchColor: Color(0xFFE7EEE6)),
-  GrowthBackgroundPreset(key: 'nature_diary', label: 'Nature Diary', assetPath: 'assets/images/growth_bg_nature_diary.png', potAssetPath: 'assets/images/growth_pot_nature_diary.png', swatchColor: Color(0xFFDCEBE0)),
-  GrowthBackgroundPreset(key: 'forest_dusk', label: 'Forest Dusk', assetPath: 'assets/images/growth_bg_forest_dusk.png', potAssetPath: 'assets/images/growth_pot_forest_dusk.png', swatchColor: Color(0xFF1C231C)),
-  GrowthBackgroundPreset(key: 'gothic', label: 'Gothic Botanical', assetPath: 'assets/images/growth_bg_gothic.png', potAssetPath: 'assets/images/growth_pot_gothic.png', swatchColor: Color(0xFF12160F)),
-  GrowthBackgroundPreset(key: 'desi_heritage', label: 'Desi Heritage', assetPath: 'assets/images/growth_bg_desi_heritage.png', potAssetPath: 'assets/images/growth_pot_desi_heritage.png', swatchColor: Color(0xFFEFC9A0)),
-  GrowthBackgroundPreset(key: 'rainforest', label: 'Rainforest', assetPath: 'assets/images/growth_bg_rainforest.png', potAssetPath: 'assets/images/growth_pot_rainforest.png', swatchColor: Color(0xFF1F3D30)),
-  GrowthBackgroundPreset(key: 'ink_wash', label: 'Ink Wash Garden', assetPath: 'assets/images/growth_bg_ink_wash.png', potAssetPath: 'assets/images/growth_pot_ink_wash.png', swatchColor: Color(0xFFF0EDE4)),
-  GrowthBackgroundPreset(key: 'heirloom_tapestry', label: 'Heirloom Tapestry', assetPath: 'assets/images/growth_bg_heirloom_tapestry.png', potAssetPath: 'assets/images/growth_pot_heirloom_tapestry.png', swatchColor: Color(0xFFD9C2A0)),
+  GrowthBackgroundPreset(key: 'pressed_journal', label: 'Pressed Journal', assetPath: 'assets/images/growth_bg_pressed_journal.jpg', potAssetPath: 'assets/images/growth_pot_pressed_journal.png', swatchColor: Color(0xFFE9E2D2)),
+  GrowthBackgroundPreset(key: 'golden_hour', label: 'Golden Hour', assetPath: 'assets/images/growth_bg_golden_hour.jpg', potAssetPath: 'assets/images/growth_pot_golden_hour.png', swatchColor: Color(0xFFF3E3D3)),
+  GrowthBackgroundPreset(key: 'greenhouse', label: 'Greenhouse', assetPath: 'assets/images/growth_bg_greenhouse.jpg', potAssetPath: 'assets/images/growth_pot_greenhouse.png', swatchColor: Color(0xFFE7EEE6)),
+  GrowthBackgroundPreset(key: 'nature_diary', label: 'Nature Diary', assetPath: 'assets/images/growth_bg_nature_diary.jpg', potAssetPath: 'assets/images/growth_pot_nature_diary.png', swatchColor: Color(0xFFDCEBE0)),
+  GrowthBackgroundPreset(key: 'forest_dusk', label: 'Forest Dusk', assetPath: 'assets/images/growth_bg_forest_dusk.jpg', potAssetPath: 'assets/images/growth_pot_forest_dusk.png', swatchColor: Color(0xFF1C231C)),
+  GrowthBackgroundPreset(key: 'gothic', label: 'Gothic Botanical', assetPath: 'assets/images/growth_bg_gothic.jpg', potAssetPath: 'assets/images/growth_pot_gothic.png', swatchColor: Color(0xFF12160F)),
+  GrowthBackgroundPreset(key: 'desi_heritage', label: 'Desi Heritage', assetPath: 'assets/images/growth_bg_desi_heritage.jpg', potAssetPath: 'assets/images/growth_pot_desi_heritage.png', swatchColor: Color(0xFFEFC9A0)),
+  GrowthBackgroundPreset(key: 'rainforest', label: 'Rainforest', assetPath: 'assets/images/growth_bg_rainforest.jpg', potAssetPath: 'assets/images/growth_pot_rainforest.png', swatchColor: Color(0xFF1F3D30)),
+  GrowthBackgroundPreset(key: 'ink_wash', label: 'Ink Wash Garden', assetPath: 'assets/images/growth_bg_ink_wash.jpg', potAssetPath: 'assets/images/growth_pot_ink_wash.png', swatchColor: Color(0xFFF0EDE4)),
+  GrowthBackgroundPreset(key: 'heirloom_tapestry', label: 'Heirloom Tapestry', assetPath: 'assets/images/growth_bg_heirloom_tapestry.jpg', potAssetPath: 'assets/images/growth_pot_heirloom_tapestry.png', swatchColor: Color(0xFFD9C2A0)),
 ];
 
 /// Growth Journey — a plant's growth timeline as a winding vine, one dated
@@ -481,7 +481,7 @@ class _VineView extends StatelessWidget {
       // the screen isn't bare before the user ever opens the picker,
       // rather than showing nothing until they make a choice.
       return Image.asset(
-        'assets/images/growth_bg.png',
+        'assets/images/growth_bg.jpg',
         repeat: ImageRepeat.repeatY,
         fit: BoxFit.fitWidth,
         alignment: Alignment.topCenter,

@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
+import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/plan_badge.dart';
 import '../widgets/primary_button.dart';
@@ -40,7 +41,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete your account?'),
         content: const Text(
-          'This permanently deletes your account, all your plants, and your subscription record. This can\'t be undone.',
+          'This deletes your account, all your plants, and your subscription record. '
+          'You\'ll have 24 hours to change your mind — see the next step.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
@@ -52,10 +54,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
+
+    // A stronger, typed confirmation for something this consequential —
+    // the plain Cancel/Delete dialog above is easy to tap through without
+    // really reading it.
+    final typedConfirmed = await showDialog<bool>(context: context, builder: (_) => const _DeleteTypedConfirmDialog());
+    if (typedConfirmed != true) return;
+    if (!mounted) return;
 
     setState(() => _deleting = true);
+    DateTime restorableUntil;
     try {
-      await appState.handleDeleteAccount();
+      restorableUntil = await appState.handleDeleteAccount();
     } catch (e) {
       if (mounted) {
         setState(() => _deleting = false);
@@ -70,14 +81,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // under the user with zero feedback — this confirms it actually
     // happened, same as the "are you sure?" dialog above it confirmed on
     // the way in. Shown (and dismissed) *before* navigating away, so it
-    // isn't yanked off screen mid-read by the screen change.
+    // isn't yanked off screen mid-read by the screen change. Now also
+    // states the 24h restore window, since deletion is no longer instant
+    // and irreversible the moment this dialog appears.
     if (mounted) {
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Account deleted'),
-          content: const Text('Your account and all its data have been permanently deleted.'),
+          content: Text(
+            'Your account has been deleted. If you sign back in before '
+            '${formatFriendlyDeadline(restorableUntil)}, you\'ll be able to restore your data and continue — '
+            'or start fresh with a new account instead. After that, it\'s gone for good.',
+          ),
           actions: [
             TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK')),
           ],
@@ -265,6 +282,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The typed "DELETE CONFIRM" step in _handleDeleteAccount — its own
+/// StatefulWidget (not inline in a builder) since the Confirm button's
+/// enabled state needs to react to every keystroke, which a plain
+/// showDialog builder can't do without its own state to rebuild from.
+class _DeleteTypedConfirmDialog extends StatefulWidget {
+  const _DeleteTypedConfirmDialog();
+  @override
+  State<_DeleteTypedConfirmDialog> createState() => _DeleteTypedConfirmDialogState();
+}
+
+class _DeleteTypedConfirmDialogState extends State<_DeleteTypedConfirmDialog> {
+  static const _phrase = 'DELETE CONFIRM';
+  final _controller = TextEditingController();
+  bool _matches = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Last step'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Type "$_phrase" below to permanently delete your account.'),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.characters,
+            decoration: const InputDecoration(hintText: _phrase),
+            onChanged: (value) => setState(() => _matches = value.trim() == _phrase),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        TextButton(
+          onPressed: _matches ? () => Navigator.of(context).pop(true) : null,
+          child: const Text('Delete account', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600)),
+        ),
+      ],
     );
   }
 }

@@ -1,3 +1,28 @@
+/// The backend stores every timestamp as naive UTC (see
+/// user_repository.soft_delete_user's docstring on why) — Pydantic then
+/// serializes a naive datetime with no 'Z'/offset suffix, which
+/// DateTime.parse() on its own would misinterpret as the device's LOCAL
+/// time instead of UTC. Used where getting this exactly right actually
+/// matters to the user (a restore deadline) rather than just "a few days
+/// ago" display text. Safe even if the backend ever does send a proper
+/// suffix — won't double one up.
+DateTime parseUtcDateTime(String value) =>
+    DateTime.parse(value.endsWith('Z') || value.contains('+') ? value : '${value}Z');
+
+const _kWeekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/// "Tue 6:17 PM" in the device's own local time — used for the
+/// account-deletion restore-window deadline (settings_screen.dart's
+/// delete-account flow, sign_in_screen.dart's restorable-account choice),
+/// shared so the two screens can't drift on the exact phrasing.
+String formatFriendlyDeadline(DateTime utc) {
+  final local = utc.toLocal();
+  final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  final ampm = local.hour < 12 ? 'AM' : 'PM';
+  return '${_kWeekdays[local.weekday - 1]} $hour12:$minute $ampm';
+}
+
 /// Mirrors PlantItem in the backend's schemas/plant.py — field names match
 /// exactly so JSON decoding needs no manual remapping.
 class Plant {

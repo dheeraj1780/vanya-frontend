@@ -371,8 +371,15 @@ class AppState extends ChangeNotifier {
   /// the delete call: the account is already gone server-side at that
   /// point, so a SharedPreferences/notification hiccup here must never
   /// surface as "could not delete your account" — that would be false.
-  Future<void> handleDeleteAccount() async {
-    await api.deleteAccount(token!);
+  ///
+  /// Returns when the 24-hour restore window closes — the account isn't
+  /// actually gone-gone until then (see the backend's
+  /// ACCOUNT_RESTORE_WINDOW): signing back in with the same identity
+  /// before this offers a restore-or-start-fresh choice instead of a
+  /// normal sign-in (see SignInScreen._handleRestorable).
+  Future<DateTime> handleDeleteAccount() async {
+    final data = await api.deleteAccount(token!);
+    final restorableUntil = parseUtcDateTime(data['restorable_until']);
     await _signOutOfProviders();
     try {
       await _prefs.remove(_sessionKey);
@@ -392,6 +399,7 @@ class AppState extends ChangeNotifier {
     }
     unawaited(WidgetService.clear());
     notifyListeners();
+    return restorableUntil;
   }
 
   /// Real call to POST /auth/link — attaches the currently authenticated

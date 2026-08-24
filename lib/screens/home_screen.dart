@@ -1,0 +1,246 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../app_state.dart';
+import '../theme/app_theme.dart';
+import '../widgets/care_task_tile.dart';
+import '../widgets/leaf_burst.dart';
+import '../widgets/plan_badge.dart';
+import '../widgets/plant_card.dart';
+import '../widgets/section_header.dart';
+
+/// Dashboard — "these are your plants and here's what they need." A
+/// tab-shell body (see main.dart's _TabShell) — no own Scaffold/AppBar, so
+/// this returns pure content, top-padded for the status bar by the shell's
+/// SafeArea.
+///
+/// The plant grid itself now lives on MyPlantsScreen; Home only previews a
+/// few plants plus whatever needs attention today, so it stays a quick
+/// glance rather than a second copy of the full collection.
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final duePlants = appState.plants.where((p) => p.nextWateringDue.difference(DateTime.now()).inHours <= 0).toList()
+      ..sort((a, b) => a.nextWateringDue.compareTo(b.nextWateringDue));
+    final previewPlants = appState.plants.take(6).toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 110), // extra bottom padding clears the floating nav
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(_greeting(), style: AppTypography.h1(AppColors.textOf(context))),
+                    const SizedBox(width: 8),
+                    // "Something recognizable" per tier — a quick glance at
+                    // the greeting tells you (and reminds you) which plan
+                    // you're on, not just when you happen to open Settings.
+                    PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} need water today',
+                  style: AppTypography.body(AppColors.textSecondaryOf(context)),
+                ),
+              ],
+            ),
+            GestureDetector(
+              onTap: () => appState.goTo('settings'),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: AppColors.primaryTintPairOf(context).$1, shape: BoxShape.circle),
+                child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 19),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 26),
+
+        SectionHeader(title: "Today's care"),
+        const SizedBox(height: 12),
+        if (duePlants.isEmpty)
+          Builder(builder: (context) {
+            final (tint, color) = AppColors.primaryTintPairOf(context);
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: tint,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: color, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('Nothing needs attention right now — nice work.', style: AppTypography.bodyStrong(color))),
+                ],
+              ),
+            );
+          })
+        else
+          for (final plant in duePlants.take(4))
+            CareTaskTile(
+              icon: Icons.water_drop_outlined,
+              title: 'Water ${plant.nickname}',
+              subtitle: plant.nextWateringDue.difference(DateTime.now()).inDays < -1
+                  ? 'Overdue by ${(-plant.nextWateringDue.difference(DateTime.now()).inHours / 24).ceil()} days'
+                  : 'Due today',
+              urgent: true,
+              onTap: () {
+                appState.selectedPlantId = plant.id;
+                appState.goTo('plantDetail');
+              },
+              trailing: TextButton(
+                onPressed: () {
+                  appState.handleMarkWatered(plant.id);
+                  LeafBurst.play(context);
+                },
+                child: const Text('Done'),
+              ),
+            ),
+
+        const SizedBox(height: 26),
+        SectionHeader(
+          title: 'My plants',
+          actionLabel: appState.plants.isEmpty ? null : 'See all',
+          onAction: () => appState.goTo('myPlants'),
+        ),
+        const SizedBox(height: 12),
+        if (appState.plants.isEmpty)
+          _EmptyPlantsPrompt(onScan: () => appState.goTo('addPlant'))
+        else
+          SizedBox(
+            height: 208,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: previewPlants.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, i) {
+                final plant = previewPlants[i];
+                return SizedBox(
+                  width: 148,
+                  child: PlantCard(
+                    plant: plant,
+                    onTap: () {
+                      appState.selectedPlantId = plant.id;
+                      appState.goTo('plantDetail');
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+
+        const SizedBox(height: 26),
+        SectionHeader(title: 'Quick actions'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickAction(
+                icon: Icons.medical_services_outlined,
+                label: 'Diagnose',
+                onTap: () {
+                  if (appState.plants.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Add a plant first, then you can diagnose it.')),
+                    );
+                    return;
+                  }
+                  appState.selectedPlantId = appState.plants.first.id;
+                  appState.goTo('diagnose', withReturnTo: 'home');
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickAction(
+                icon: Icons.calculate_outlined,
+                label: 'Calculators',
+                onTap: () {
+                  appState.selectedPlantId = null; // let CalculatorsScreen default to the first plant
+                  appState.goTo('calculators');
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _QuickAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.borderOf(context)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.primary, size: 19),
+            const SizedBox(width: 10),
+            Expanded(child: Text(label, style: AppTypography.bodyStrong(AppColors.textOf(context)))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyPlantsPrompt extends StatelessWidget {
+  final VoidCallback onScan;
+  const _EmptyPlantsPrompt({required this.onScan});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onScan,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: AppColors.placeholderGradientOf(context),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.borderOf(context)),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.center_focus_strong, color: AppColors.primary, size: 26),
+            const SizedBox(height: 10),
+            Text('No plants yet', style: AppTypography.h3(AppColors.textOf(context))),
+            const SizedBox(height: 3),
+            Text('Tap to scan your first plant', style: AppTypography.body(AppColors.textSecondaryOf(context))),
+          ],
+        ),
+      ),
+    );
+  }
+}

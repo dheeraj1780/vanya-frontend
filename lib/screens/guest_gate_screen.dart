@@ -1,0 +1,107 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:provider/provider.dart';
+import '../app_state.dart';
+import '../theme/app_theme.dart';
+import '../widgets/primary_button.dart';
+
+class GuestGateScreen extends StatefulWidget {
+  const GuestGateScreen({super.key});
+  @override
+  State<GuestGateScreen> createState() => _GuestGateScreenState();
+}
+
+class _GuestGateScreenState extends State<GuestGateScreen> {
+  bool _linking = false;
+  String _errorMessage = '';
+
+  Future<void> _completeLink(fb.AuthCredential credential) async {
+    final appState = context.read<AppState>();
+    final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
+    final identityToken = await userCredential.user!.getIdToken();
+    await appState.handleLinkAccount(identityToken!);
+    appState.goBack(fallback: appState.returnTo); // returns to wherever this gate was triggered from, now signed in
+  }
+
+  Future<void> _handleGoogle() async {
+    if (_linking) return; // guards a fast double-tap landing before the button disables
+    setState(() {
+      _linking = true;
+      _errorMessage = '';
+    });
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => _linking = false);
+        return;
+      }
+      final googleAuth = await googleUser.authentication;
+      final credential = fb.GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
+      await _completeLink(credential);
+    } catch (e) {
+      setState(() {
+        _linking = false;
+        _errorMessage = e.toString().contains('IDENTITY_ALREADY_LINKED')
+            ? 'That account is already linked to a different user.'
+            : 'Could not sign in with Google.';
+      });
+    }
+  }
+
+  Future<void> _handleApple() async {
+    if (_linking) return;
+    setState(() {
+      _linking = true;
+      _errorMessage = '';
+    });
+    try {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+      );
+      final credential = fb.OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+      await _completeLink(credential);
+    } catch (e) {
+      setState(() {
+        _linking = false;
+        _errorMessage = 'Could not sign in with Apple.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.read<AppState>();
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.person_add_alt_1, size: 30, color: AppColors.primary),
+              const SizedBox(height: 12),
+              Text('Sign in to keep going', style: AppTypography.h1(AppColors.textOf(context))),
+              const SizedBox(height: 8),
+              Text(appState.guestGateReason, textAlign: TextAlign.center, style: AppTypography.body(AppColors.textSecondaryOf(context))),
+              const SizedBox(height: 22),
+              SecondaryButton(label: 'Continue with Apple', onPressed: _linking ? null : _handleApple),
+              const SizedBox(height: 10),
+              SecondaryButton(label: 'Continue with Google', onPressed: _linking ? null : _handleGoogle),
+              if (_errorMessage.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(_errorMessage, style: const TextStyle(color: AppColors.accent, fontSize: 12.5)),
+              ],
+              const SizedBox(height: 14),
+              TextButton(onPressed: () => appState.goBack(fallback: appState.returnTo), child: const Text('Maybe later')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

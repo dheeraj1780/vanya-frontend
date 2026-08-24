@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "548708201155",
+    "project_id": "plant-companion-81d67",
+    "storage_bucket": "plant-companion-81d67.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:548708201155:android:ae108353e8790ef4e16876",
+        "android_client_info": {
+          "package_name": "com.plantcompanion.plant_companion"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "548708201155-svkhn9vqqs6qb8qjqlefm7va0tb4nfku.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.plantcompanion.plant_companion",
+            "certificate_hash": "458226ca26246a0f60cbb2ce038e5f42835fbef7"
+          }
+        },
+        {
+          "client_id": "548708201155-khf06pnuf2dhggt7mgveubkv69pamahn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8HLkbjtoJ7xOmDtXUAudCXcsvGwRprwQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "548708201155-khf06pnuf2dhggt7mgveubkv69pamahn.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "548708201155-v5enpgl9ju6agh0d3j8ehjc17r3mq731.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.plantcompanion.plantCompanion"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

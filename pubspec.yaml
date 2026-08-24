@@ -1,0 +1,73 @@
+name: plant_companion
+description: VANYA — plant care, Flutter rewrite
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Backend communication
+  http: ^1.2.2
+
+  # Firebase Authentication — same unified Google/Apple sign-in as the
+  # React version; verified server-side by the same Firebase Admin SDK
+  # backend code already built.
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.3
+
+  # Session persistence (equivalent to localStorage in the React version)
+  shared_preferences: ^2.3.2
+
+  # Camera capture for plant identification/diagnosis
+  image_picker: ^1.1.2
+
+  # NOTE: purchases_flutter/RevenueCat was deliberately removed. VANYA
+  # sells subscriptions on the website (vanya-web/), not inside this app —
+  # Google Play's "reader app" / consumption-only exemption means an app
+  # with ZERO in-app purchase UI pays Google 0% commission, vs. 15-30% via
+  # Play Billing. See backend app/services/billing_service.py's module
+  # docstring, and screens/paywall_screen.dart, which is informational
+  # only (no purchase flow) for exactly this reason.
+  url_launcher: ^6.3.1
+
+  # Local notifications for watering reminders
+  flutter_local_notifications: ^18.0.1
+  permission_handler: ^11.3.1
+  timezone: ^0.9.4
+
+  # Device location — used only to derive the calculator's season/weather
+  # (see CalculatorsScreen's "Use my location"); never tracked in the
+  # background or sent anywhere but the one GET /plants/:id/calculators call.
+  geolocator: ^13.0.2
+
+  # State management — equivalent role to React's useState/props drilling
+  # in the original App.jsx
+  provider: ^6.1.2
+
+  cupertino_icons: ^1.0.8
+
+  # Editorial-feel serif for headings/plant names in the premium design
+  # system (see theme/app_theme.dart) — fetched + cached on-device at
+  # runtime, falls back to the system font automatically if offline.
+  google_fonts: ^6.2.1
+
+  # Plays the bundled intro video on cold start (see screens/splash_screen.dart).
+  video_player: ^2.9.5
+  home_widget: ^0.9.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/videos/

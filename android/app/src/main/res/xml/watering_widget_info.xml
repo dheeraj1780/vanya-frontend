@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- updatePeriodMillis is a *request* — Android clamps anything below 30
+     minutes to 30 minutes regardless (a platform floor, not something this
+     app controls), so 1800000 just states that floor explicitly rather
+     than asking for something that would silently get overridden anyway.
+     The app itself also pushes an immediate update on top of this
+     whenever plant data actually changes (see WidgetService in the
+     Flutter code) — this period is only the fallback for "nothing changed
+     recently, but refresh anyway" (e.g. a plant quietly becoming overdue
+     with no user action to trigger a push). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/watering_widget"
+    android:previewImage="@mipmap/ic_launcher"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/watering_widget_description">
+</appwidget-provider>

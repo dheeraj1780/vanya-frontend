@@ -476,7 +476,18 @@ class _VineView extends StatelessWidget {
   /// photo URL (a custom gallery pick). Either way, a load failure just
   /// falls back to nothing rather than a broken-image icon.
   Widget _resolveBackground() {
-    if (background == null) return const SizedBox.shrink();
+    if (background == null) {
+      // Mirrors growth_pot.png's role for the pot — a neutral default so
+      // the screen isn't bare before the user ever opens the picker,
+      // rather than showing nothing until they make a choice.
+      return Image.asset(
+        'assets/images/growth_bg.png',
+        repeat: ImageRepeat.repeatY,
+        fit: BoxFit.fitWidth,
+        alignment: Alignment.topCenter,
+        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+      );
+    }
     final preset = _currentPreset();
     if (background!.startsWith('preset:')) {
       if (preset == null) return const SizedBox.shrink();

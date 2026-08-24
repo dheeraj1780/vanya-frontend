@@ -19,11 +19,13 @@ class ApiException implements Exception {
 
 class ApiClient {
   // Same env-driven base URL pattern as VITE_API_BASE_URL — set via
-  // --dart-define=API_BASE_URL=... at build time, defaulting to the same
-  // localhost value used for laptop testing.
+  // --dart-define=API_BASE_URL=... at build time, defaulting to the real
+  // deployed Render backend so a plain `flutter run`/release build works
+  // without any local server or tunnel. Override for local dev against a
+  // laptop-hosted backend (e.g. via ngrok) with --dart-define=API_BASE_URL=...
   static const String _baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://tinfoil-hankie-falcon.ngrok-free.dev/v1',
+    defaultValue: 'https://vanya-backend-64ja.onrender.com/v1',
   );
 
   String _generateRequestId() {

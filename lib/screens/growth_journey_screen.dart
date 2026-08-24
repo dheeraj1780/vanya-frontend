@@ -14,28 +14,42 @@ import '../widgets/primary_button.dart';
 
 /// Bundled Growth Journey background options — key must match one of
 /// plant_service._GROWTH_BACKGROUND_PRESETS on the backend exactly.
-/// assetPath points at a file this repo doesn't have yet; until it's added
-/// (see BackgroundPickerSheet's swatch fallback), the picker still shows a
-/// plain color swatch instead of a broken image.
+/// assetPath/potAssetPath point at files this repo doesn't have yet; until
+/// they're added (see BackgroundPickerSheet's swatch fallback and
+/// _VineView's pot errorBuilder), the picker shows a plain color swatch
+/// and the vine screen falls back to the generic pot/no texture.
+///
+/// potAssetPath is a themed pot matching this background's mood (e.g. an
+/// ornate urn for Gothic, a woven basket for Rainforest) — picking a
+/// background picks its pot too, rather than mixing a random pot under a
+/// themed background. The plain "assets/images/growth_pot.png" (see
+/// _VineView) is only the fallback for no-background-chosen/custom-photo.
 class GrowthBackgroundPreset {
   final String key;
   final String label;
   final String assetPath;
+  final String potAssetPath;
   final Color swatchColor;
-  const GrowthBackgroundPreset({required this.key, required this.label, required this.assetPath, required this.swatchColor});
+  const GrowthBackgroundPreset({
+    required this.key,
+    required this.label,
+    required this.assetPath,
+    required this.potAssetPath,
+    required this.swatchColor,
+  });
 }
 
 const List<GrowthBackgroundPreset> kGrowthBackgroundPresets = [
-  GrowthBackgroundPreset(key: 'pressed_journal', label: 'Pressed Journal', assetPath: 'assets/images/growth_bg_pressed_journal.png', swatchColor: Color(0xFFE9E2D2)),
-  GrowthBackgroundPreset(key: 'golden_hour', label: 'Golden Hour', assetPath: 'assets/images/growth_bg_golden_hour.png', swatchColor: Color(0xFFF3E3D3)),
-  GrowthBackgroundPreset(key: 'greenhouse', label: 'Greenhouse', assetPath: 'assets/images/growth_bg_greenhouse.png', swatchColor: Color(0xFFE7EEE6)),
-  GrowthBackgroundPreset(key: 'nature_diary', label: 'Nature Diary', assetPath: 'assets/images/growth_bg_nature_diary.png', swatchColor: Color(0xFFDCEBE0)),
-  GrowthBackgroundPreset(key: 'forest_dusk', label: 'Forest Dusk', assetPath: 'assets/images/growth_bg_forest_dusk.png', swatchColor: Color(0xFF1C231C)),
-  GrowthBackgroundPreset(key: 'gothic', label: 'Gothic Botanical', assetPath: 'assets/images/growth_bg_gothic.png', swatchColor: Color(0xFF12160F)),
-  GrowthBackgroundPreset(key: 'desi_heritage', label: 'Desi Heritage', assetPath: 'assets/images/growth_bg_desi_heritage.png', swatchColor: Color(0xFFEFC9A0)),
-  GrowthBackgroundPreset(key: 'rainforest', label: 'Rainforest', assetPath: 'assets/images/growth_bg_rainforest.png', swatchColor: Color(0xFF1F3D30)),
-  GrowthBackgroundPreset(key: 'ink_wash', label: 'Ink Wash Garden', assetPath: 'assets/images/growth_bg_ink_wash.png', swatchColor: Color(0xFFF0EDE4)),
-  GrowthBackgroundPreset(key: 'heirloom_tapestry', label: 'Heirloom Tapestry', assetPath: 'assets/images/growth_bg_heirloom_tapestry.png', swatchColor: Color(0xFFD9C2A0)),
+  GrowthBackgroundPreset(key: 'pressed_journal', label: 'Pressed Journal', assetPath: 'assets/images/growth_bg_pressed_journal.png', potAssetPath: 'assets/images/growth_pot_pressed_journal.png', swatchColor: Color(0xFFE9E2D2)),
+  GrowthBackgroundPreset(key: 'golden_hour', label: 'Golden Hour', assetPath: 'assets/images/growth_bg_golden_hour.png', potAssetPath: 'assets/images/growth_pot_golden_hour.png', swatchColor: Color(0xFFF3E3D3)),
+  GrowthBackgroundPreset(key: 'greenhouse', label: 'Greenhouse', assetPath: 'assets/images/growth_bg_greenhouse.png', potAssetPath: 'assets/images/growth_pot_greenhouse.png', swatchColor: Color(0xFFE7EEE6)),
+  GrowthBackgroundPreset(key: 'nature_diary', label: 'Nature Diary', assetPath: 'assets/images/growth_bg_nature_diary.png', potAssetPath: 'assets/images/growth_pot_nature_diary.png', swatchColor: Color(0xFFDCEBE0)),
+  GrowthBackgroundPreset(key: 'forest_dusk', label: 'Forest Dusk', assetPath: 'assets/images/growth_bg_forest_dusk.png', potAssetPath: 'assets/images/growth_pot_forest_dusk.png', swatchColor: Color(0xFF1C231C)),
+  GrowthBackgroundPreset(key: 'gothic', label: 'Gothic Botanical', assetPath: 'assets/images/growth_bg_gothic.png', potAssetPath: 'assets/images/growth_pot_gothic.png', swatchColor: Color(0xFF12160F)),
+  GrowthBackgroundPreset(key: 'desi_heritage', label: 'Desi Heritage', assetPath: 'assets/images/growth_bg_desi_heritage.png', potAssetPath: 'assets/images/growth_pot_desi_heritage.png', swatchColor: Color(0xFFEFC9A0)),
+  GrowthBackgroundPreset(key: 'rainforest', label: 'Rainforest', assetPath: 'assets/images/growth_bg_rainforest.png', potAssetPath: 'assets/images/growth_pot_rainforest.png', swatchColor: Color(0xFF1F3D30)),
+  GrowthBackgroundPreset(key: 'ink_wash', label: 'Ink Wash Garden', assetPath: 'assets/images/growth_bg_ink_wash.png', potAssetPath: 'assets/images/growth_pot_ink_wash.png', swatchColor: Color(0xFFF0EDE4)),
+  GrowthBackgroundPreset(key: 'heirloom_tapestry', label: 'Heirloom Tapestry', assetPath: 'assets/images/growth_bg_heirloom_tapestry.png', potAssetPath: 'assets/images/growth_pot_heirloom_tapestry.png', swatchColor: Color(0xFFD9C2A0)),
 ];
 
 /// Growth Journey — a plant's growth timeline as a winding vine, one dated
@@ -355,7 +369,7 @@ class _VineView extends StatelessWidget {
                   child: Column(
                     children: [
                       Image.asset(
-                        'assets/images/growth_pot.png',
+                        _potAssetPath(),
                         width: _potWidth,
                         height: _potHeight,
                         fit: BoxFit.contain,
@@ -445,21 +459,26 @@ class _VineView extends StatelessWidget {
   static const _months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   String _formatDate(DateTime d) => '${_months[d.month - 1]} ${d.day}';
 
+  /// The chosen preset, if background is `"preset:<key>"` and that key is
+  /// still a known one — null for no-background/custom-photo/an
+  /// unrecognized (e.g. retired) key.
+  GrowthBackgroundPreset? _currentPreset() {
+    if (background == null || !background!.startsWith('preset:')) return null;
+    final key = background!.substring('preset:'.length);
+    for (final p in kGrowthBackgroundPresets) {
+      if (p.key == key) return p;
+    }
+    return null;
+  }
+
   /// null -> nothing (plain scaffold background shows through); "preset:x"
   /// -> the matching bundled asset; anything else -> treated as a real
   /// photo URL (a custom gallery pick). Either way, a load failure just
   /// falls back to nothing rather than a broken-image icon.
   Widget _resolveBackground() {
     if (background == null) return const SizedBox.shrink();
+    final preset = _currentPreset();
     if (background!.startsWith('preset:')) {
-      final key = background!.substring('preset:'.length);
-      GrowthBackgroundPreset? preset;
-      for (final p in kGrowthBackgroundPresets) {
-        if (p.key == key) {
-          preset = p;
-          break;
-        }
-      }
       if (preset == null) return const SizedBox.shrink();
       return Image.asset(
         preset.assetPath,
@@ -477,6 +496,13 @@ class _VineView extends StatelessWidget {
       errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
     );
   }
+
+  /// The pot matches whichever background preset is chosen (an ornate urn
+  /// under Gothic, a woven basket under Rainforest, ...) rather than
+  /// mixing a random pot under a themed background. Falls back to the
+  /// plain generic pot when there's no preset (no background chosen yet,
+  /// or a custom gallery photo, which has no themed pot of its own).
+  String _potAssetPath() => _currentPreset()?.potAssetPath ?? 'assets/images/growth_pot.png';
 }
 
 class _VinePainter extends CustomPainter {

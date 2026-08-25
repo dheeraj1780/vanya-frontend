@@ -101,19 +101,36 @@ class _ScanButton extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Transform.translate(
-                offset: const Offset(0, -14),
-                child: Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
+              // BUG-H004: Transform.translate alone repaints the circle
+              // higher but still reserves its full height in the Column's
+              // layout — so "Scan" ended up sitting well below where
+              // Home/My Plants/Reminders' labels sit (those only have a
+              // plain 22px Icon above their 3px gap). OverflowBox reserves
+              // exactly that same 22px here instead, letting the circle
+              // itself be bigger and float above it purely visually — so
+              // the label row lines up across all four items.
+              SizedBox(
+                height: 22,
+                child: OverflowBox(
+                  maxWidth: 58,
+                  maxHeight: 58,
+                  alignment: Alignment.bottomCenter,
+                  child: Transform.translate(
+                    offset: const Offset(0, -18),
+                    child: Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
+                      ),
+                      child: const Icon(Icons.center_focus_strong, color: Colors.white, size: 26),
+                    ),
                   ),
-                  child: const Icon(Icons.center_focus_strong, color: Colors.white, size: 24),
                 ),
               ),
+              const SizedBox(height: 3),
               Text('Scan', style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
             ],
           ),

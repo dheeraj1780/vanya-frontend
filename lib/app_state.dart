@@ -353,6 +353,20 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Google sign-out failed (proceeding anyway): $e');
     }
+    // BUG-H001: signOut() alone wasn't enough — Google Play Services on
+    // Android can still silently re-hand back the same account on the next
+    // signIn() call even after signOut(), a known quirk of the plugin/OS
+    // account cache, not something this app controls otherwise. disconnect()
+    // fully revokes the granted OAuth scopes, which reliably forces the real
+    // account chooser (with every Google account on the device, not just the
+    // last-used one) on the next sign-in. Throws if there was never a Google
+    // session to revoke (e.g. a guest or Apple-only user) — safe to ignore,
+    // same tolerance as signOut() above.
+    try {
+      await GoogleSignIn().disconnect();
+    } catch (e) {
+      debugPrint('Google disconnect failed (proceeding anyway): $e');
+    }
   }
 
   /// Permanently deletes the account server-side (DELETE /account — see
@@ -455,7 +469,13 @@ class AppState extends ChangeNotifier {
       unawaited(NotificationService.instance.scheduleForPlant(watered));
     }
     try {
-      await api.updatePlant(token!, plantId, {'last_watered_at': now.toIso8601String()});
+      // .toUtc() matters: the backend stores every timestamp as naive UTC
+      // and treats any datetime it receives as already being UTC (see
+      // parseUtcDateTime's docstring) — sending local wall-clock time
+      // here (e.g. 8:00 PM IST) would get stored as if it were 8:00 PM
+      // UTC, skewing every future "next watering due" calculation for
+      // this plant by the device's UTC offset.
+      await api.updatePlant(token!, plantId, {'last_watered_at': now.toUtc().toIso8601String()});
     } catch (e) {
       debugPrint('Failed to sync watered status: $e');
       unawaited(refreshPlants()); // reconcile with server truth if the write failed

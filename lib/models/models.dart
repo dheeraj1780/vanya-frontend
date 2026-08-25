@@ -88,7 +88,7 @@ class Plant {
         lightNeeds: json['light_needs'],
         waterFrequencyDays: json['water_frequency_days'] ?? 7,
         photoUrl: json['photo_url'],
-        lastWateredAt: json['last_watered_at'] != null ? DateTime.parse(json['last_watered_at']) : null,
+        lastWateredAt: json['last_watered_at'] != null ? parseUtcDateTime(json['last_watered_at']) : null,
         funFacts: (json['fun_facts'] as List?)?.map((e) => e.toString()).toList() ?? [],
         regionalNames: (json['regional_names'] as List?)?.map((e) => e.toString()).toList() ?? [],
         soilType: json['soil_type'],
@@ -97,7 +97,7 @@ class Plant {
         isPetSafe: json['is_pet_safe'],
         isAirPurifying: json['is_air_purifying'],
         careDifficulty: json['care_difficulty'],
-        createdAt: DateTime.parse(json['created_at']),
+        createdAt: parseUtcDateTime(json['created_at']),
         growthBackground: json['growth_background'],
       );
 
@@ -222,7 +222,7 @@ class DiagnosisResult {
         likelyCauses: (json['likely_causes'] as List).map((e) => e.toString()).toList(),
         recommendedAction: json['recommended_action'],
         urgency: json['urgency'],
-        createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
+        createdAt: json['created_at'] != null ? parseUtcDateTime(json['created_at']) : null,
       );
 }
 
@@ -245,7 +245,7 @@ class WateringSchedule {
   factory WateringSchedule.fromJson(Map<String, dynamic> json) => WateringSchedule(
         baseIntervalDays: json['base_interval_days'],
         adjustedIntervalDays: json['adjusted_interval_days'],
-        nextWateringDate: json['next_watering_date'] != null ? DateTime.parse(json['next_watering_date']) : null,
+        nextWateringDate: json['next_watering_date'] != null ? parseUtcDateTime(json['next_watering_date']) : null,
         recommendedAmountMl: json['recommended_amount_ml'],
         reasoning: json['reasoning'],
       );
@@ -367,7 +367,7 @@ class FeatureUsage {
         limit: json['limit'],
         period: json['period'],
         remaining: json['remaining'],
-        resetsAt: json['resets_at'] != null ? DateTime.parse(json['resets_at']) : null,
+        resetsAt: json['resets_at'] != null ? parseUtcDateTime(json['resets_at']) : null,
       );
 }
 
@@ -453,7 +453,7 @@ class Entitlement {
         plan: json['plan'],
         planDisplayName: json['plan_display_name'],
         subscriptionStatus: json['subscription_status'],
-        expiresAt: json['expires_at'] != null ? DateTime.parse(json['expires_at']) : null,
+        expiresAt: json['expires_at'] != null ? parseUtcDateTime(json['expires_at']) : null,
         isGuest: json['is_guest'],
         plantCount: json['plant_count'],
         plantLimit: json['plant_limit'],
@@ -493,6 +493,6 @@ class GrowthMemory {
         name: json['name'],
         note: json['note'],
         photoUrl: json['photo_url'],
-        createdAt: DateTime.parse(json['created_at']),
+        createdAt: parseUtcDateTime(json['created_at']),
       );
 }

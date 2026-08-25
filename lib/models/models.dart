@@ -43,8 +43,10 @@ class Plant {
   // Indian homes (e.g. "Money Plant", "Paisa Paudha") — alongside, not
   // instead of, species/nickname. Empty when the AI had no genuine one.
   final List<String> regionalNames;
-  // E-MP002: a plain-language soil recommendation for this species.
+  // E-MP002: a named soil type (e.g. "Red soil", "Black soil", "Sandy
+  // loam") plus what to mix into it for this species specifically.
   final String? soilType;
+  final String? soilAmendments;
   final bool? isIndoor;
   final bool? isPetSafe;
   final bool? isAirPurifying;
@@ -68,6 +70,7 @@ class Plant {
     this.funFacts = const [],
     this.regionalNames = const [],
     this.soilType,
+    this.soilAmendments,
     this.isIndoor,
     this.isPetSafe,
     this.isAirPurifying,
@@ -89,6 +92,7 @@ class Plant {
         funFacts: (json['fun_facts'] as List?)?.map((e) => e.toString()).toList() ?? [],
         regionalNames: (json['regional_names'] as List?)?.map((e) => e.toString()).toList() ?? [],
         soilType: json['soil_type'],
+        soilAmendments: json['soil_amendments'],
         isIndoor: json['is_indoor'],
         isPetSafe: json['is_pet_safe'],
         isAirPurifying: json['is_air_purifying'],
@@ -140,6 +144,7 @@ class IdentifyResult {
   // E-MP001/E-MP002 — see the matching fields on Plant above.
   final List<String> regionalNames;
   final String soilType;
+  final String soilAmendments;
   final bool isIndoor;
   final bool isPetSafe;
   final bool isAirPurifying;
@@ -165,6 +170,7 @@ class IdentifyResult {
     required this.funFacts,
     this.regionalNames = const [],
     this.soilType = '',
+    this.soilAmendments = '',
     required this.isIndoor,
     required this.isPetSafe,
     required this.isAirPurifying,
@@ -184,6 +190,7 @@ class IdentifyResult {
         funFacts: (json['fun_facts'] as List).map((e) => e.toString()).toList(),
         regionalNames: (json['regional_names'] as List?)?.map((e) => e.toString()).toList() ?? [],
         soilType: json['soil_type'] ?? '',
+        soilAmendments: json['soil_amendments'] ?? '',
         isIndoor: json['is_indoor'],
         isPetSafe: json['is_pet_safe'],
         isAirPurifying: json['is_air_purifying'],

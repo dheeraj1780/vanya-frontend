@@ -191,6 +191,7 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
         'fun_facts': result.funFacts,
         'regional_names': result.regionalNames,
         'soil_type': result.soilType.isEmpty ? null : result.soilType,
+        'soil_amendments': result.soilAmendments.isEmpty ? null : result.soilAmendments,
         'is_indoor': result.isIndoor,
         'is_pet_safe': result.isPetSafe,
         'is_air_purifying': result.isAirPurifying,

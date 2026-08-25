@@ -139,7 +139,20 @@ class PlantFactsScreen extends StatelessWidget {
                       children: [
                         const Icon(Icons.grass, size: 15, color: AppColors.sage),
                         const SizedBox(width: 10),
-                        Expanded(child: Text(plant.soilType!, style: const TextStyle(fontSize: 13, height: 1.5))),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // The named soil type (e.g. "Red soil", "Sandy loam") leads,
+                              // bold — the amendments are a supporting suggestion below it.
+                              Text(plant.soilType!, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.4)),
+                              if (plant.soilAmendments?.isNotEmpty ?? false) ...[
+                                const SizedBox(height: 3),
+                                Text(plant.soilAmendments!, style: const TextStyle(fontSize: 13, height: 1.5)),
+                              ],
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),

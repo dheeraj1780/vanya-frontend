@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="watering_widget_description">Shows the plant most due for water — tap to open VANYA.</string>
+    <string name="watering_widget_description">A little garden that reflects how your plants are doing — tap to open VANYA.</string>
 </resources>

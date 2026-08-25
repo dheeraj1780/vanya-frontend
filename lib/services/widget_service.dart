@@ -2,13 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import '../models/models.dart';
 
-/// Keeps the Android home-screen "Watering" widget in sync with the app's
-/// own plant data. Deliberately simple (v1): shows just the single most
-/// urgent plant to water — nickname + due status — not a full list, and
-/// tapping it just opens the app rather than doing anything in place (e.g.
-/// a "mark watered" action right on the widget). See
+/// Keeps the Android home-screen "spirit garden" widget in sync with the
+/// app's own plant data. Still v1-simple on the *information* side — shows
+/// just the single most urgent plant to water, tapping it opens the app
+/// rather than doing anything in place — but the widget itself is now an
+/// illustrated scene whose tree condition reflects `garden_health` below,
+/// crossed with real day/night (decided natively). See
 /// android/app/src/main/kotlin/.../WateringWidgetProvider.kt for the
-/// native side that actually renders this.
+/// native side that actually renders this and the 8 scene drawables it
+/// picks between.
 ///
 /// home_widget's saveWidgetData just writes into the widget's own
 /// SharedPreferences-backed store; updateWidget() is what tells Android to
@@ -29,22 +31,28 @@ class WidgetService {
       if (plants.isEmpty) {
         await HomeWidget.saveWidgetData<String>('plant_name', 'No plants yet');
         await HomeWidget.saveWidgetData<String>('plant_status', 'Open VANYA to scan your first plant');
-        await HomeWidget.saveWidgetData<String>('plant_urgency', 'neutral');
+        await HomeWidget.saveWidgetData<String>('garden_health', 'empty');
       } else {
         final sorted = [...plants]..sort((a, b) => a.nextWateringDue.compareTo(b.nextWateringDue));
         final plant = sorted.first;
         final daysUntil = plant.nextWateringDue.difference(DateTime.now()).inHours / 24;
         final overdue = daysUntil < 0;
+        final dueSoon = !overdue && daysUntil < 1;
         // Same phrasing convention as RemindersScreen's _ReminderTile —
         // this should read as the same product, not a different one.
         final status = overdue
             ? 'Overdue by ${(-daysUntil).ceil()} day(s)'
-            : daysUntil < 1
+            : dueSoon
                 ? 'Due today'
                 : 'Due in ${daysUntil.ceil()} day(s)';
         await HomeWidget.saveWidgetData<String>('plant_name', plant.nickname);
         await HomeWidget.saveWidgetData<String>('plant_status', status);
-        await HomeWidget.saveWidgetData<String>('plant_urgency', overdue || daysUntil < 1 ? 'due' : 'ok');
+        // Drives which of the 8 scene illustrations shows — see
+        // WateringWidgetProvider.sceneDrawableFor. Three buckets instead of
+        // the old due/ok binary: overdue (wilted tree) is now visually
+        // distinct from due-soon-but-not-late (dulling tree), so the scene
+        // itself communicates severity, not just a single "needs water" flag.
+        await HomeWidget.saveWidgetData<String>('garden_health', overdue ? 'overdue' : (dueSoon ? 'attention' : 'thriving'));
       }
       await HomeWidget.updateWidget(androidName: _androidWidgetName);
     } catch (e) {
@@ -63,7 +71,7 @@ class WidgetService {
     try {
       await HomeWidget.saveWidgetData<String>('plant_name', 'VANYA');
       await HomeWidget.saveWidgetData<String>('plant_status', 'Open VANYA to sign in');
-      await HomeWidget.saveWidgetData<String>('plant_urgency', 'neutral');
+      await HomeWidget.saveWidgetData<String>('garden_health', 'empty');
       await HomeWidget.updateWidget(androidName: _androidWidgetName);
     } catch (e) {
       debugPrint('Failed to clear the watering widget: $e');

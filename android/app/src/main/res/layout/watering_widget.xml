@@ -1,36 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v1, deliberately simple: one plant (the most urgent to water), name +
-     status, tap anywhere to open the app. See
-     WateringWidgetProvider.kt for what actually fills these in. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- The "spirit garden" widget — a full-bleed illustrated scene instead of
+     plain text. Which of the 8 scene images shows is decided natively in
+     WateringWidgetProvider.kt from garden_health (thriving/attention/
+     overdue/empty — written by lib/services/widget_service.dart) crossed
+     with real day/night. The clock is a plain TextClock, not a TextView
+     this code updates — TextClock refreshes itself every minute on its
+     own, system-driven, so the live time costs nothing (no
+     BroadcastReceiver, no battery impact) beyond what a home screen clock
+     already costs the OS anyway. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center_vertical"
-    android:background="@drawable/widget_background"
-    android:padding="14dp">
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/widget_plant_name"
+    <ImageView
+        android:id="@+id/widget_scene"
         android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="@string/watering_widget_description"
+        tools:src="@drawable/widget_thriving_day" />
+
+    <!-- Top-left is where the scene prompts kept the composition calm, on
+         purpose, for exactly this. Shadow (not a solid backing chip) keeps
+         legibility without covering any of the illustration. -->
+    <TextClock
+        android:id="@+id/widget_clock"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="@color/widget_text_primary"
-        android:textSize="15sp"
+        android:layout_gravity="top|start"
+        android:layout_margin="14dp"
+        android:format12Hour="h:mm a"
+        android:format24Hour="HH:mm"
+        android:textColor="#FFFFFFFF"
+        android:textSize="22sp"
         android:textStyle="bold"
-        android:maxLines="1"
-        android:ellipsize="end"
-        tools:text="Momo" />
+        android:shadowColor="#99000000"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="6" />
 
-    <TextView
-        android:id="@+id/widget_status"
+    <!-- Which plant actually needs water, kept small and low — the scene
+         itself is the at-a-glance signal now, this is just the detail for
+         anyone who wants it. -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="3dp"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="12.5sp"
-        android:maxLines="2"
-        android:ellipsize="end"
-        tools:text="Due today" />
-</LinearLayout>
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/widget_plant_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:shadowColor="#B3000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            tools:text="Momo" />
+
+        <TextView
+            android:id="@+id/widget_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="#E6FFFFFF"
+            android:textSize="11.5sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:shadowColor="#B3000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            tools:text="Due today" />
+    </LinearLayout>
+
+</FrameLayout>

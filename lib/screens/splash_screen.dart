@@ -82,8 +82,18 @@ class _SplashScreenState extends State<SplashScreen> {
         fit: StackFit.expand,
         children: [
           if (ready)
+            // BoxFit.contain, not .cover — the current intro video is
+            // landscape (~16:9), and covering a portrait phone screen with
+            // it would crop roughly 3/4 of its width away (scaled to fill
+            // height, only containerAspect/videoAspect of the width
+            // survives), almost certainly cutting off both kids on either
+            // side of the frame. contain always shows the whole video —
+            // letterboxed against the Scaffold's own background rather
+            // than cropped — and still looks essentially full-bleed for a
+            // portrait-shot video, so it's the safe choice regardless of
+            // which orientation the intro happens to be shot in.
             FittedBox(
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               child: SizedBox(
                 width: controller.value.size.width,
                 height: controller.value.size.height,

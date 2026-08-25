@@ -67,7 +67,22 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(selected ? activeIcon : icon, size: 22, color: color),
+            // The icon/color/weight-only distinction between selected and
+            // not was too subtle to read at a glance ("small change in the
+            // shade") — a filled pill behind the icon (Material 3's own
+            // nav-indicator pattern) makes the current tab unmistakable.
+            // Only the WIDTH changes here (22 -> 40), never the height
+            // (stays exactly 22 either way), so this can't disturb the
+            // label-row alignment across all four bottom-nav items.
+            selected
+                ? Container(
+                    width: 40,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: AppColors.primaryTintPairOf(context).$1, borderRadius: BorderRadius.circular(11)),
+                    child: Icon(activeIcon, size: 20, color: color),
+                  )
+                : Icon(icon, size: 22, color: color),
             const SizedBox(height: 3),
             Text(label, style: AppTypography.caption(color).copyWith(fontWeight: selected ? FontWeight.w700 : FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],

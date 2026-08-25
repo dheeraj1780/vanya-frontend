@@ -118,20 +118,20 @@ class HomeScreen extends StatelessWidget {
               ),
             );
           })
-        else if (duePlants.length <= 3)
-          // Few enough to just lay out normally — no need for a scroll box
-          // when everything already fits.
-          for (final plant in duePlants) _careTaskTileFor(context, appState, plant)
         else
-          // E-H003: with more than a handful of plants due at once, an
-          // unrolled list here pushed "My plants"/"Quick actions" further
-          // and further down the page. Capping this section's height and
-          // scrolling *within* it keeps the rest of Home reachable without
-          // extra scrolling, while still surfacing every plant that's due
-          // (not just the first few) — the ~3-tiles-tall box just hints
-          // there's more below via a partial 4th tile.
+          // E-H003: this box's height is now *always* fixed the moment
+          // there's at least one due plant — not just once there are "too
+          // many" to fit. The previous version only capped growth past 3
+          // items, so 1-3 due plants still pushed "My plants"/"Quick
+          // actions" further down with every plant added — exactly the
+          // "Quick actions keeps sliding further down as I add plants"
+          // problem, since a freshly-added, never-watered plant is
+          // immediately "due" (see Plant.nextWateringDue), so adding
+          // plants directly grows this list. Fixed at ~2 tiles tall
+          // (scrolls internally for more, same as before) keeps Home's
+          // total height constant regardless of plant count.
           SizedBox(
-            height: 232,
+            height: 160,
             child: ListView.builder(
               itemCount: duePlants.length,
               itemBuilder: (context, i) => _careTaskTileFor(context, appState, duePlants[i]),

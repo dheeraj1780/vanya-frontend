@@ -98,40 +98,47 @@ class _ScanButton extends StatelessWidget {
         onTap: onTap,
         child: SizedBox(
           width: 62,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          // BUG-H004: an OverflowBox/Transform combo here still left "Scan"
+          // a hair off from Home/My Plants/Reminders' labels — a Transform
+          // doesn't add layout height, but OverflowBox's own resolved size
+          // (and how it aligns a bigger child within a smaller one) isn't
+          // as pixel-predictable as just... not sharing layout space with
+          // the label at all. This Stack fully decouples the two: the
+          // Column below is byte-for-byte the same shape as _NavItem's
+          // (22px slot + 3px gap + label), just with an invisible
+          // placeholder instead of a real icon, so "Scan" lands on exactly
+          // the same baseline as the other three, guaranteed — the raised
+          // circle is a separate Positioned overlay that doesn't
+          // participate in that layout at all, purely visual.
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
             children: [
-              // BUG-H004: Transform.translate alone repaints the circle
-              // higher but still reserves its full height in the Column's
-              // layout — so "Scan" ended up sitting well below where
-              // Home/My Plants/Reminders' labels sit (those only have a
-              // plain 22px Icon above their 3px gap). OverflowBox reserves
-              // exactly that same 22px here instead, letting the circle
-              // itself be bigger and float above it purely visually — so
-              // the label row lines up across all four items.
-              SizedBox(
-                height: 22,
-                child: OverflowBox(
-                  maxWidth: 58,
-                  maxHeight: 58,
-                  alignment: Alignment.bottomCenter,
-                  child: Transform.translate(
-                    offset: const Offset(0, -18),
-                    child: Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
-                      ),
-                      child: const Icon(Icons.center_focus_strong, color: Colors.white, size: 26),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 22, height: 22),
+                  const SizedBox(height: 3),
+                  Text('Scan', style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
+                ],
+              ),
+              Positioned(
+                top: -38,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
                     ),
+                    child: const Icon(Icons.center_focus_strong, color: Colors.white, size: 26),
                   ),
                 ),
               ),
-              const SizedBox(height: 3),
-              Text('Scan', style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
             ],
           ),
         ),

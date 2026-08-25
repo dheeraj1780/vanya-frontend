@@ -1,3 +1,4 @@
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api/client.dart';
@@ -98,21 +99,28 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
             surfaceTintColor: Colors.transparent,
             leading: _CircleIconButton(icon: Icons.arrow_back, onTap: () => appState.goBack(fallback: 'home')),
             flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  PlantImage(url: plant.photoUrl, borderRadius: 0),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black38],
-                        stops: [0.6, 1.0],
+              background: GestureDetector(
+                // Tap the hero photo to view it full-screen over a blurred
+                // backdrop of this same page — popping the viewer just
+                // reveals this screen again exactly as it was, since it's
+                // still underneath (opaque: false), not rebuilt.
+                onTap: () => Navigator.of(context).push(_FullScreenPlantImageRoute(imageUrl: plant.photoUrl)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    PlantImage(url: plant.photoUrl, borderRadius: 0),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black38],
+                          stops: [0.6, 1.0],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -262,6 +270,63 @@ class _InfoTile extends StatelessWidget {
           const SizedBox(height: 3),
           Text(value, style: AppTypography.h3(AppColors.textOf(context)), maxLines: 1, overflow: TextOverflow.ellipsis),
           if (detail != null) Text(detail!, style: AppTypography.body(AppColors.textSecondaryOf(context))),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pushed over the current screen (opaque: false) rather than replacing
+/// it — Plant Detail stays alive and rendered underneath, so a) it's
+/// there to blur, and b) popping this reveals it exactly as it was, no
+/// rebuild/scroll-reset. See PlantDetailScreen's hero photo onTap.
+class _FullScreenPlantImageRoute extends PageRouteBuilder<void> {
+  _FullScreenPlantImageRoute({required String? imageUrl})
+      : super(
+          opaque: false,
+          barrierColor: Colors.transparent,
+          transitionDuration: const Duration(milliseconds: 220),
+          pageBuilder: (context, animation, secondaryAnimation) => FadeTransition(
+            opacity: animation,
+            child: _FullScreenPlantImage(imageUrl: imageUrl),
+          ),
+        );
+}
+
+class _FullScreenPlantImage extends StatelessWidget {
+  final String? imageUrl;
+  const _FullScreenPlantImage({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Blurs whatever's actually behind — the real Plant Detail
+          // screen, still painted underneath this route — not a copy.
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(color: Colors.black.withValues(alpha: 0.55)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(28),
+            // Swallows taps on the image itself so only tapping the
+            // blurred surround dismisses it — matches the common
+            // photo-viewer convention (tap image to zoom/no-op, tap
+            // outside to close) rather than a hair-trigger dismiss.
+            child: GestureDetector(
+              onTap: () {},
+              child: PlantImage(url: imageUrl, borderRadius: AppRadius.lg, fit: BoxFit.contain),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: _CircleIconButton(icon: Icons.close, onTap: () => Navigator.of(context).pop()),
+            ),
+          ),
         ],
       ),
     );

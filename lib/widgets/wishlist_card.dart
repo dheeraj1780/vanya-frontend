@@ -35,7 +35,16 @@ class WishlistCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: PlantImage(url: plant.photoUrl, borderRadius: 0)),
+          // E-MP004: the big photo used to be inert — only the small eco
+          // icon below opened anything. A wishlist plant has no full detail
+          // screen (see class docstring), so the photo taps through to the
+          // same place that icon does: its Growth Journey.
+          Expanded(
+            child: GestureDetector(
+              onTap: moving ? null : onOpenGrowthJourney,
+              child: PlantImage(url: plant.photoUrl, borderRadius: 0),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Column(

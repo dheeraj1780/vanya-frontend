@@ -39,6 +39,12 @@ class Plant {
   final String? photoUrl;
   final DateTime? lastWateredAt;
   final List<String> funFacts;
+  // E-MP001: common household/vernacular names this plant goes by in
+  // Indian homes (e.g. "Money Plant", "Paisa Paudha") — alongside, not
+  // instead of, species/nickname. Empty when the AI had no genuine one.
+  final List<String> regionalNames;
+  // E-MP002: a plain-language soil recommendation for this species.
+  final String? soilType;
   final bool? isIndoor;
   final bool? isPetSafe;
   final bool? isAirPurifying;
@@ -60,6 +66,8 @@ class Plant {
     this.photoUrl,
     this.lastWateredAt,
     this.funFacts = const [],
+    this.regionalNames = const [],
+    this.soilType,
     this.isIndoor,
     this.isPetSafe,
     this.isAirPurifying,
@@ -79,6 +87,8 @@ class Plant {
         photoUrl: json['photo_url'],
         lastWateredAt: json['last_watered_at'] != null ? DateTime.parse(json['last_watered_at']) : null,
         funFacts: (json['fun_facts'] as List?)?.map((e) => e.toString()).toList() ?? [],
+        regionalNames: (json['regional_names'] as List?)?.map((e) => e.toString()).toList() ?? [],
+        soilType: json['soil_type'],
         isIndoor: json['is_indoor'],
         isPetSafe: json['is_pet_safe'],
         isAirPurifying: json['is_air_purifying'],
@@ -127,6 +137,9 @@ class IdentifyResult {
   final String lightNeeds;
   final String careNote;
   final List<String> funFacts;
+  // E-MP001/E-MP002 — see the matching fields on Plant above.
+  final List<String> regionalNames;
+  final String soilType;
   final bool isIndoor;
   final bool isPetSafe;
   final bool isAirPurifying;
@@ -150,6 +163,8 @@ class IdentifyResult {
     required this.lightNeeds,
     required this.careNote,
     required this.funFacts,
+    this.regionalNames = const [],
+    this.soilType = '',
     required this.isIndoor,
     required this.isPetSafe,
     required this.isAirPurifying,
@@ -167,6 +182,8 @@ class IdentifyResult {
         lightNeeds: json['light_needs'],
         careNote: json['care_note'],
         funFacts: (json['fun_facts'] as List).map((e) => e.toString()).toList(),
+        regionalNames: (json['regional_names'] as List?)?.map((e) => e.toString()).toList() ?? [],
+        soilType: json['soil_type'] ?? '',
         isIndoor: json['is_indoor'],
         isPetSafe: json['is_pet_safe'],
         isAirPurifying: json['is_air_purifying'],

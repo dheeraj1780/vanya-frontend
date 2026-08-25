@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
+import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/care_task_tile.dart';
 import '../widgets/leaf_burst.dart';
@@ -24,6 +25,30 @@ class HomeScreen extends StatelessWidget {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+
+  /// Shared by both the plain-list and scroll-box layouts below (E-H003) so
+  /// the tile itself — and its "Done" action — is defined in exactly one place.
+  Widget _careTaskTileFor(BuildContext context, AppState appState, Plant plant) {
+    return CareTaskTile(
+      icon: Icons.water_drop_outlined,
+      title: 'Water ${plant.nickname}',
+      subtitle: plant.nextWateringDue.difference(DateTime.now()).inDays < -1
+          ? 'Overdue by ${(-plant.nextWateringDue.difference(DateTime.now()).inHours / 24).ceil()} days'
+          : 'Due today',
+      urgent: true,
+      onTap: () {
+        appState.selectedPlantId = plant.id;
+        appState.goTo('plantDetail');
+      },
+      trailing: TextButton(
+        onPressed: () {
+          appState.handleMarkWatered(plant.id);
+          LeafBurst.play(context);
+        },
+        child: const Text('Done'),
+      ),
+    );
   }
 
   @override
@@ -93,27 +118,25 @@ class HomeScreen extends StatelessWidget {
               ),
             );
           })
+        else if (duePlants.length <= 3)
+          // Few enough to just lay out normally — no need for a scroll box
+          // when everything already fits.
+          for (final plant in duePlants) _careTaskTileFor(context, appState, plant)
         else
-          for (final plant in duePlants.take(4))
-            CareTaskTile(
-              icon: Icons.water_drop_outlined,
-              title: 'Water ${plant.nickname}',
-              subtitle: plant.nextWateringDue.difference(DateTime.now()).inDays < -1
-                  ? 'Overdue by ${(-plant.nextWateringDue.difference(DateTime.now()).inHours / 24).ceil()} days'
-                  : 'Due today',
-              urgent: true,
-              onTap: () {
-                appState.selectedPlantId = plant.id;
-                appState.goTo('plantDetail');
-              },
-              trailing: TextButton(
-                onPressed: () {
-                  appState.handleMarkWatered(plant.id);
-                  LeafBurst.play(context);
-                },
-                child: const Text('Done'),
-              ),
+          // E-H003: with more than a handful of plants due at once, an
+          // unrolled list here pushed "My plants"/"Quick actions" further
+          // and further down the page. Capping this section's height and
+          // scrolling *within* it keeps the rest of Home reachable without
+          // extra scrolling, while still surfacing every plant that's due
+          // (not just the first few) — the ~3-tiles-tall box just hints
+          // there's more below via a partial 4th tile.
+          SizedBox(
+            height: 232,
+            child: ListView.builder(
+              itemCount: duePlants.length,
+              itemBuilder: (context, i) => _careTaskTileFor(context, appState, duePlants[i]),
             ),
+          ),
 
         const SizedBox(height: 26),
         SectionHeader(

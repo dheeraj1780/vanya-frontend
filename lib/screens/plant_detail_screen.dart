@@ -127,6 +127,17 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                     const SizedBox(height: 3),
                     Text(plant.species!, style: AppTypography.bodyLarge(AppColors.textSecondaryOf(context)).copyWith(fontStyle: FontStyle.italic)),
                   ],
+                  // E-MP001: the botanical name alone doesn't mean much to
+                  // most people — surface the household/vernacular names
+                  // (often Indian ones — see ai_provider.IDENTIFY_PROMPT)
+                  // right here too, not just buried in the Facts screen.
+                  if (plant.regionalNames.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      'Also known as ${plant.regionalNames.join(', ')}',
+                      style: AppTypography.body(AppColors.textSecondaryOf(context)),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -198,7 +209,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                       appState.goTo('growthJourney', withReturnTo: 'plantDetail');
                     },
                   ),
-                  if (plant.funFacts.isNotEmpty)
+                  if (plant.funFacts.isNotEmpty || plant.regionalNames.isNotEmpty || (plant.soilType?.isNotEmpty ?? false))
                     Center(
                       child: TextButton.icon(
                         onPressed: () => appState.goTo('plantFacts'),

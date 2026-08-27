@@ -22,8 +22,44 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
     final appState = context.read<AppState>();
     final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
     final identityToken = await userCredential.user!.getIdToken();
-    await appState.handleLinkAccount(identityToken!);
-    appState.goBack(fallback: appState.returnTo); // returns to wherever this gate was triggered from, now signed in
+    try {
+      await appState.handleLinkAccount(identityToken!);
+      if (!mounted) return;
+      appState.goBack(fallback: appState.returnTo); // returns to wherever this gate was triggered from, now signed in
+    } on ApiException catch (err) {
+      if (err.errorCode != 'IDENTITY_ALREADY_LINKED') rethrow;
+      // This identity already has its own separate, real account — a
+      // dead-end error here left a normal user with no idea what to do
+      // next besides going all the way back to Settings, logging out,
+      // and signing in fresh. Offer to just sign into that existing
+      // account directly instead — explicit about the tradeoff, since
+      // this guest session's data won't come along (nothing here merges
+      // the two accounts, see AppState.switchToExistingAccount).
+      if (!mounted) return;
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Already registered'),
+          content: const Text(
+            'This account is already registered with VANYA. Continuing will sign you into that '
+            "account instead — your guest plants and data won't come with it, since they're not "
+            'linked to it. Continue anyway?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Continue, lose guest data', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+      if (proceed == true) {
+        // handleSignedIn (inside switchToExistingAccount) already
+        // navigates to Home on its own — nothing further to do here.
+        await appState.switchToExistingAccount(identityToken!);
+      }
+    }
   }
 
   Future<void> _handleGoogle() async {
@@ -33,11 +69,19 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
       _errorMessage = '';
     });
     try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        setState(() => _linking = false);
-        return;
+      // Forces the real account picker every time, even if Google's SDK
+      // cached a selection from an earlier attempt on this screen —
+      // without this, tapping "Continue with Google" again (e.g. to try
+      // a different account after "already registered") silently reused
+      // the same account, with no picker shown at all.
+      try {
+        await GoogleSignIn().signOut();
+        await GoogleSignIn().disconnect();
+      } catch (_) {
+        // Nothing to sign out of yet (first attempt this session) — fine.
       }
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return; // cancelled the picker — `finally` below still resets _linking
       final googleAuth = await googleUser.authentication;
       final credential = fb.GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
       await _completeLink(credential);
@@ -50,15 +94,15 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
       // could never actually match; catching ApiException directly and
       // just showing its real message works for that case and every
       // other backend-driven failure, not one hardcoded guess.
-      setState(() {
-        _linking = false;
-        _errorMessage = err.message;
-      });
+      setState(() => _errorMessage = err.message);
     } catch (e) {
-      setState(() {
-        _linking = false;
-        _errorMessage = 'Could not sign in with Google.';
-      });
+      setState(() => _errorMessage = 'Could not sign in with Google.');
+    } finally {
+      // _completeLink's own "already registered" dialog can now resolve
+      // via Cancel with no exception thrown at all (the user just chose
+      // not to proceed) — without this in a `finally`, that path left
+      // _linking stuck true forever and the button permanently disabled.
+      if (mounted) setState(() => _linking = false);
     }
   }
 
@@ -78,15 +122,11 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
       );
       await _completeLink(credential);
     } on ApiException catch (err) {
-      setState(() {
-        _linking = false;
-        _errorMessage = err.message;
-      });
+      setState(() => _errorMessage = err.message);
     } catch (e) {
-      setState(() {
-        _linking = false;
-        _errorMessage = 'Could not sign in with Apple.';
-      });
+      setState(() => _errorMessage = 'Could not sign in with Apple.');
+    } finally {
+      if (mounted) setState(() => _linking = false);
     }
   }
 

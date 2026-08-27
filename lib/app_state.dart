@@ -464,6 +464,21 @@ class AppState extends ChangeNotifier {
     return data;
   }
 
+  /// Called when a Link attempt fails specifically because the identity
+  /// already belongs to a different, real account (error code
+  /// IDENTITY_ALREADY_LINKED) and the user explicitly chose to abandon
+  /// this guest session and sign into that existing account instead of
+  /// being left stuck with no path forward. Reuses the identityToken
+  /// already obtained for the failed link attempt — no need to re-prompt
+  /// Google/Apple's picker again. This does NOT merge the two accounts:
+  /// the guest session's plants/data stay on the now-unreachable guest
+  /// account, exactly the tradeoff the confirmation dialog warns about
+  /// before this gets called.
+  Future<void> switchToExistingAccount(String identityToken) async {
+    final data = await api.signIn('firebase', identityToken: identityToken);
+    await handleSignedIn(data);
+  }
+
   void handlePlantSaved(Plant newPlant) {
     plants = [newPlant, ...plants];
     unawaited(refreshEntitlement());

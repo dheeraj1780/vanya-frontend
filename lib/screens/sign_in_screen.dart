@@ -20,6 +20,21 @@ class _SignInScreenState extends State<SignInScreen> {
   String _status = 'idle';
   String _errorMessage = '';
 
+  @override
+  void initState() {
+    super.initState();
+    // Consumed once — AppState.sessionExpiredMessage is only ever set by
+    // _handleSessionExpired (a dead-token 401 forcing this screen open),
+    // never by a normal logout/first-launch path to sign-in. Read+clear
+    // it here so it explains itself once, not on every future visit.
+    final appState = context.read<AppState>();
+    final message = appState.sessionExpiredMessage;
+    if (message != null) {
+      appState.sessionExpiredMessage = null;
+      _errorMessage = message;
+    }
+  }
+
   /// Signs in with Firebase via a native provider credential, then sends
   /// the resulting Firebase ID token to our own backend — same contract
   /// as the web version's signInWithPopup + getIdToken(), just reached via

@@ -102,6 +102,7 @@ class AppState extends ChangeNotifier {
   /// useEffect(() => { if (token) {...} }, []) bootstrap in App.jsx — if a
   /// session already exists (returning user), skip onboarding entirely.
   Future<void> bootstrap() async {
+    api.onSessionExpired = _handleSessionExpired;
     _prefs = await SharedPreferences.getInstance();
     token = _prefs.getString(_sessionKey);
     isGuest = _prefs.getBool(_isGuestKey) ?? false;
@@ -331,6 +332,42 @@ class AppState extends ChangeNotifier {
       debugPrint('Cancelling reminders failed (proceeding anyway): $e');
     }
     unawaited(WidgetService.clear());
+    resetTo('signin');
+  }
+
+  /// Consumed once by SignInScreen.initState (which reads it, shows it,
+  /// then nulls it back out) — set only by _handleSessionExpired below, so
+  /// this stays null on every ordinary path to the sign-in screen.
+  String? sessionExpiredMessage;
+
+  /// Wired to api.onSessionExpired in bootstrap() — fires the moment any
+  /// authenticated call comes back 401. Deliberately NOT the same as
+  /// handleLogout: this skips the /auth/signout call (the token that
+  /// would authorize it is exactly what's already dead server-side, so
+  /// that call would just 401 again) and leaves a message behind so the
+  /// sign-in screen reads as "please sign in again", not a silent,
+  /// unexplained wipe of everything that was on screen a moment ago.
+  Future<void> _handleSessionExpired() async {
+    if (token == null) return; // already signed out — nothing to do
+    await _signOutOfProviders();
+    try {
+      await _prefs.remove(_sessionKey);
+      await _prefs.remove(_isGuestKey);
+    } catch (e) {
+      debugPrint('Clearing stored session failed (proceeding anyway): $e');
+    }
+    token = null;
+    isGuest = false;
+    plants = [];
+    entitlement = null;
+    remindersEnabled = false;
+    try {
+      await NotificationService.instance.cancelAll();
+    } catch (e) {
+      debugPrint('Cancelling reminders failed (proceeding anyway): $e');
+    }
+    unawaited(WidgetService.clear());
+    sessionExpiredMessage = 'Your session expired — sign in again to pick up right where you left off.';
     resetTo('signin');
   }
 

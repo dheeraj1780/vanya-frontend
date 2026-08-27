@@ -28,6 +28,19 @@ class ApiClient {
     defaultValue: 'https://vanya-backend-64ja.onrender.com/v1',
   );
 
+  /// Fires whenever an authenticated request comes back 401/UNAUTHORIZED —
+  /// the session token has expired (30-day lifetime, no refresh-token
+  /// flow) or been invalidated (e.g. a sign-out on this same account
+  /// elsewhere bumped token_version — see get_current_user in the
+  /// backend's dependencies.py). AppState wires this in bootstrap() to
+  /// force a clean re-auth. Without this, every call site's own
+  /// catch-and-debugPrint swallowed the 401 silently, so a dead token
+  /// just left the UI stuck showing an empty, fresh-looking account
+  /// (no plants, no entitlement) with nothing telling the user their
+  /// real data wasn't actually gone — just unreachable until they
+  /// happened to log out and back in themselves.
+  void Function()? onSessionExpired;
+
   String _generateRequestId() {
     final rand = Random();
     final suffix = List.generate(6, (_) => rand.nextInt(36).toRadixString(36)).join();
@@ -77,9 +90,17 @@ class ApiClient {
     final envelope = jsonDecode(response.body) as Map<String, dynamic>;
 
     if (envelope['success'] != true) {
+      final errorCode = envelope['error'] ?? 'UNKNOWN_ERROR';
+      // token != null means this specific request actually sent a Bearer
+      // header — a 401 on a request that never carried a token (e.g. a
+      // bad /auth/signin attempt) isn't a session expiry, so this stays
+      // narrowly scoped to real "your token died" cases.
+      if (errorCode == 'UNAUTHORIZED' && token != null) {
+        onSessionExpired?.call();
+      }
       throw ApiException(
         envelope['message'] ?? 'Request failed',
-        envelope['error'] ?? 'UNKNOWN_ERROR',
+        errorCode,
         envelope['status_code'] ?? response.statusCode,
         envelope['trace_id'] ?? 'unknown',
       );

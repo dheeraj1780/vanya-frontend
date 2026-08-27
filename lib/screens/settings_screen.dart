@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
+import '../api/client.dart';
 import '../app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
@@ -125,6 +126,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
       final googleAuth = await googleUser.authentication;
       await _completeLink(fb.GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken));
+    } on ApiException catch (err) {
+      // err.message is always safe to show verbatim (see sign_in_screen's
+      // equivalent handling) — this is what was actually hiding the real
+      // reason (usually "This account is already linked to a different
+      // user" — the Google account was already used to sign in normally
+      // at some point) behind a useless generic message.
+      setState(() => _linkError = err.message);
     } catch (e) {
       setState(() => _linkError = 'Could not link Google account.');
     } finally {
@@ -146,6 +154,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         idToken: appleCredential.identityToken,
         accessToken: appleCredential.authorizationCode,
       ));
+    } on ApiException catch (err) {
+      setState(() => _linkError = err.message);
     } catch (e) {
       setState(() => _linkError = 'Could not link Apple account.');
     } finally {

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
+import '../api/client.dart';
 import '../app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
@@ -40,12 +41,23 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
       final googleAuth = await googleUser.authentication;
       final credential = fb.GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
       await _completeLink(credential);
+    } on ApiException catch (err) {
+      // err.message is always safe to show verbatim. Previously this
+      // checked e.toString().contains('IDENTITY_ALREADY_LINKED') to
+      // special-case that error — but ApiException.toString() returns
+      // the human-readable message ("This account is already linked to
+      // a different user"), never the error *code*, so that substring
+      // could never actually match; catching ApiException directly and
+      // just showing its real message works for that case and every
+      // other backend-driven failure, not one hardcoded guess.
+      setState(() {
+        _linking = false;
+        _errorMessage = err.message;
+      });
     } catch (e) {
       setState(() {
         _linking = false;
-        _errorMessage = e.toString().contains('IDENTITY_ALREADY_LINKED')
-            ? 'That account is already linked to a different user.'
-            : 'Could not sign in with Google.';
+        _errorMessage = 'Could not sign in with Google.';
       });
     }
   }
@@ -65,6 +77,11 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
         accessToken: appleCredential.authorizationCode,
       );
       await _completeLink(credential);
+    } on ApiException catch (err) {
+      setState(() {
+        _linking = false;
+        _errorMessage = err.message;
+      });
     } catch (e) {
       setState(() {
         _linking = false;

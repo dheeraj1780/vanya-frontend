@@ -312,15 +312,23 @@ class ApiClient {
       });
 
   // ---- Account ----
-  Future<bool> getPreferences(String token) async {
+  /// Returns {"reminders_enabled": bool, "name": String?} — name is the
+  /// display name captured at sign-in (Google always sends one; Apple
+  /// only on that identity's first-ever sign-in) or set manually via
+  /// updatePreferences below. null means nothing's been captured yet.
+  Future<Map<String, dynamic>> getPreferences(String token) async {
     final data = await _request('/users/preferences', token: token);
-    return data['reminders_enabled'];
+    return data as Map<String, dynamic>;
   }
 
-  Future<bool> updatePreferences(String token, bool remindersEnabled) async {
-    final data = await _request('/users/preferences',
-        method: 'PUT', token: token, body: {'reminders_enabled': remindersEnabled});
-    return data['reminders_enabled'];
+  /// name: omit/null leaves the stored name untouched; '' clears it back
+  /// to no name; anything else replaces it.
+  Future<Map<String, dynamic>> updatePreferences(String token, bool remindersEnabled, {String? name}) async {
+    final data = await _request('/users/preferences', method: 'PUT', token: token, body: {
+      'reminders_enabled': remindersEnabled,
+      if (name != null) 'name': name,
+    });
+    return data as Map<String, dynamic>;
   }
 
   /// Returns the raw {"restorable_until": "..."} data — see

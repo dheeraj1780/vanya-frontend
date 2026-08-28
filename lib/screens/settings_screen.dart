@@ -20,6 +20,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _linking = false;
   String _linkError = '';
   bool _deleting = false;
+  bool _savingName = false;
+
+  /// Fallback for accounts that never captured a name automatically —
+  /// Apple only sends one on that identity's very first sign-in ever, and
+  /// a guest has no identity to pull one from at all — plus anyone who
+  /// just wants to change what's there. Pre-filled with the current name
+  /// (or blank); saving an empty value clears it back to no name.
+  Future<void> _editName() async {
+    final appState = context.read<AppState>();
+    final controller = TextEditingController(text: appState.userName ?? '');
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Your name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          maxLength: 100,
+          decoration: const InputDecoration(hintText: 'e.g. Priya'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (newName == null || !mounted) return; // dialog dismissed without Save
+
+    setState(() => _savingName = true);
+    try {
+      await appState.updateUserName(newName);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save your name. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingName = false);
+    }
+  }
   bool _loggingOut = false;
 
   // BUGID-S001: the tap previously had no loading feedback at all — on a
@@ -279,6 +325,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: AppColors.surfaceOf(context),
               child: Column(
                 children: [
+                  _Row(
+                    label: 'Name',
+                    trailingWidget: _savingName
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text(
+                            (appState.userName?.isNotEmpty ?? false) ? appState.userName! : 'Add your name',
+                            style: TextStyle(
+                              color: (appState.userName?.isNotEmpty ?? false) ? AppColors.textOf(context) : AppColors.textSecondaryOf(context),
+                            ),
+                          ),
+                    onTap: _savingName ? () {} : _editName,
+                  ),
+                  const Divider(height: 1),
                   _Row(
                     label: 'Plan',
                     trailingWidget: PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),

@@ -20,11 +20,18 @@ import '../widgets/section_header.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  String _greeting() {
+  /// name is null whenever nothing's been captured/set yet (common for
+  /// Apple, always true for a never-linked guest — see AppState.userName's
+  /// docstring) — falls back to the plain greeting with no name in that
+  /// case, exactly the same text this always showed before the feature existed.
+  String _greeting(String? name) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    final base = hour < 12
+        ? 'Good morning'
+        : hour < 17
+            ? 'Good afternoon'
+            : 'Good evening';
+    return (name == null || name.isEmpty) ? base : '$base, $name';
   }
 
   /// Shared by both the plain-list and scroll-box layouts below (E-H003) so
@@ -70,7 +77,7 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(_greeting(), style: AppTypography.h1(AppColors.textOf(context))),
+                    Text(_greeting(appState.userName), style: AppTypography.h1(AppColors.textOf(context))),
                     const SizedBox(width: 8),
                     // "Something recognizable" per tier — a quick glance at
                     // the greeting tells you (and reminds you) which plan

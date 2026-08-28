@@ -358,7 +358,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     final appState = context.read<AppState>();
     bool remembered = true;
     try {
-      remembered = await appState.api.getPreferences(appState.token!);
+      remembered = (await appState.api.getPreferences(appState.token!))['reminders_enabled'];
     } catch (e) {
       debugPrint('Failed to load preferences: $e');
     }

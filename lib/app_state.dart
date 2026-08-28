@@ -42,6 +42,10 @@ class AppState extends ChangeNotifier {
   DiagnosisResult? diagnosisResult;
   Entitlement? entitlement;
   String guestGateReason = '';
+  // Display name for the Home greeting — see loadReminderPreference/
+  // updateUserName. null means nothing captured/set yet, not an error;
+  // every screen that shows it needs to handle that gracefully.
+  String? userName;
 
   // Smart Filters — applied server-side via GET /plants query params
   // (see api/client.dart's listPlants). Null means "no filter on this field".
@@ -218,13 +222,17 @@ class AppState extends ChangeNotifier {
     await refreshPlants();
   }
 
-  /// Loads the reminders_enabled preference and, if on, (re)schedules every
-  /// plant's local notification — the one place that actually connects the
-  /// stored preference to a real notification being scheduled.
+  /// Loads the reminders_enabled preference (and, alongside it, the
+  /// display name — same endpoint, see api.getPreferences) and, if
+  /// reminders are on, (re)schedules every plant's local notification —
+  /// the one place that actually connects the stored preference to a
+  /// real notification being scheduled.
   Future<void> loadReminderPreference() async {
     if (token == null) return;
     try {
-      remindersEnabled = await api.getPreferences(token!);
+      final data = await api.getPreferences(token!);
+      remindersEnabled = data['reminders_enabled'];
+      userName = data['name'];
       notifyListeners();
       if (remindersEnabled) {
         await NotificationService.instance.scheduleAll(plants);
@@ -234,6 +242,19 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to load reminder preference: $e');
     }
+  }
+
+  /// Saves a manually-set/edited display name (Settings' "Name" field) —
+  /// the fallback for accounts that never captured one automatically
+  /// (Apple only sends one on that identity's very first sign-in ever;
+  /// guests have no identity to pull one from at all) and for anyone who
+  /// just wants to change what's there. Pass null or '' to clear it back
+  /// to no name — the Home greeting then falls back to a plain "Good
+  /// morning" with no name, same as before this feature existed.
+  Future<void> updateUserName(String? name) async {
+    final data = await api.updatePreferences(token!, remindersEnabled, name: name ?? '');
+    userName = data['name'];
+    notifyListeners();
   }
 
   /// Fire-and-forget analytics — see analytics_router.py. No-ops before a
@@ -326,6 +347,7 @@ class AppState extends ChangeNotifier {
     plants = [];
     entitlement = null;
     remindersEnabled = false;
+    userName = null;
     try {
       await NotificationService.instance.cancelAll();
     } catch (e) {
@@ -361,6 +383,7 @@ class AppState extends ChangeNotifier {
     plants = [];
     entitlement = null;
     remindersEnabled = false;
+    userName = null;
     try {
       await NotificationService.instance.cancelAll();
     } catch (e) {
@@ -443,6 +466,7 @@ class AppState extends ChangeNotifier {
     plants = [];
     entitlement = null;
     remindersEnabled = false;
+    userName = null;
     try {
       await NotificationService.instance.cancelAll();
     } catch (e) {

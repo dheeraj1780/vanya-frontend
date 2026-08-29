@@ -15,6 +15,7 @@ class AppState extends ChangeNotifier {
   static const _sessionKey = 'plant_companion_session_token';
   static const _isGuestKey = 'plant_companion_is_guest';
   static const _deviceUuidKey = 'plant_companion_device_uuid';
+  static const _hasSeenIntroKey = 'plant_companion_has_seen_intro';
 
   final ApiClient api = ApiClient();
   late SharedPreferences _prefs;
@@ -32,6 +33,22 @@ class AppState extends ChangeNotifier {
 
   String? token;
   bool isGuest = false;
+  // BUG (reported: intro video "replays inconsistently" on a plain
+  // Home-button resume, not just a genuine force-close): this used to be
+  // tracked purely in-memory (a bool on main.dart's own State, defaulting
+  // true every time). That's fine as long as the Dart process stays alive,
+  // but Android is free to kill *any* backgrounded app's process to
+  // reclaim memory — and when the user taps back into it, Android
+  // transparently restarts the process, which for Flutter means main()
+  // genuinely runs again from scratch. There's no way to tell that apart
+  // from a real cold start at the Dart level; the OS decides when this
+  // happens, which device/memory pressure at the time makes it look
+  // "inconsistent" rather than deterministic. Persisting to disk here
+  // (survives process death, only reset by uninstall/clear-data) makes
+  // the intro show once per install, full stop — not once per process —
+  // which is both the fix and, per most apps' own convention, the more
+  // sensible behavior anyway.
+  bool hasSeenIntro = false;
   List<Plant> plants = [];
   // Plants identified but not yet given a garden slot — a separate list
   // from `plants` (which is always status=active), loaded lazily (only
@@ -77,6 +94,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Called once by SplashScreen's onDone (see main.dart) — persists so a
+  /// later OS-driven process restart doesn't show the intro again; see
+  /// hasSeenIntro's own docstring above for why that matters.
+  Future<void> markIntroSeen() async {
+    hasSeenIntro = true;
+    await _prefs.setBool(_hasSeenIntroKey, true);
+  }
+
   Plant? get selectedPlant {
     if (selectedPlantId == null) return null;
     try {
@@ -110,6 +135,7 @@ class AppState extends ChangeNotifier {
     _prefs = await SharedPreferences.getInstance();
     token = _prefs.getString(_sessionKey);
     isGuest = _prefs.getBool(_isGuestKey) ?? false;
+    hasSeenIntro = _prefs.getBool(_hasSeenIntroKey) ?? false;
 
     if (token != null) {
       screen = 'home';
@@ -331,7 +357,34 @@ class AppState extends ChangeNotifier {
   /// slow network can't make the button look stuck.
   Future<void> handleLogout() async {
     try {
-      if (token != null) await api.signOut(token!).timeout(const Duration(seconds: 10));
+      if (token != null) {
+        if (isGuest) {
+          // BUG (reported: logging out as guest, then continuing as guest
+          // again, brought back all the same plants — despite the button's
+          // own label saying "guest data will be lost"): guests have no
+          // separate "Delete account" option (see settings_screen.dart —
+          // it's only shown for non-guests), because Log out *is* meant to
+          // be that action for them. This used to call plain /auth/signout,
+          // which only invalidates the session token — the account and its
+          // data stayed fully intact server-side. Worse, the device_uuid
+          // that identifies a guest is never cleared locally either (see
+          // getOrCreateDeviceUuid), so the next "Continue as guest" on this
+          // same device reconnected to that exact same still-alive account,
+          // silently, with zero indication anything had gone wrong.
+          //
+          // Calling deleteAccount here actually honors the label's promise
+          // — same soft-delete + 24h restore window as the real "Delete
+          // account" flow. Signing back in as guest right after now
+          // correctly surfaces the same "Welcome back, restore or start
+          // fresh?" choice that flow already shows (guest sign-in already
+          // routes through the same resolveSignInResponse handling — see
+          // sign_in_screen.dart's _handleGuest), rather than either the old
+          // silent full restore or a jarring unexplained empty state.
+          await api.deleteAccount(token!).timeout(const Duration(seconds: 10));
+        } else {
+          await api.signOut(token!).timeout(const Duration(seconds: 10));
+        }
+      }
     } catch (e) {
       debugPrint('Sign-out request failed (clearing local session anyway): $e');
     }
@@ -484,6 +537,19 @@ class AppState extends ChangeNotifier {
     final data = await api.linkIdentity(token!, identityToken);
     await _prefs.setBool(_isGuestKey, false);
     isGuest = false;
+    // BUG (reported: after linking, the Plan badge kept showing "Guest",
+    // and the display name auto-captured from the linked account never
+    // appeared): this used to only ever flip isGuest locally. `entitlement`
+    // was whatever got fetched back when this was still a guest account —
+    // fetched once, never guest-plan by definition — and nothing here ever
+    // reloaded it, so PlanBadge kept reading that stale cached value
+    // instead of falling through to isGuest's now-correct false. The name
+    // has the same problem: the backend correctly auto-captures it during
+    // link_identity (see auth_service.py — same "capture once" logic as a
+    // fresh sign-in), but nothing on this side ever re-fetched it
+    // afterward, so `userName` just stayed null.
+    await refreshEntitlement();
+    await loadReminderPreference();
     notifyListeners();
     return data;
   }
@@ -498,9 +564,19 @@ class AppState extends ChangeNotifier {
   /// the guest session's plants/data stay on the now-unreachable guest
   /// account, exactly the tradeoff the confirmation dialog warns about
   /// before this gets called.
-  Future<void> switchToExistingAccount(String identityToken) async {
-    final data = await api.signIn('firebase', identityToken: identityToken);
-    await handleSignedIn(data);
+  ///
+  /// Returns the raw /auth/signin response rather than finishing sign-in
+  /// itself — BUG this fixed: the "existing account" this reaches can
+  /// itself be one deleted less than 24h ago (backend now reports that as
+  /// IDENTITY_ALREADY_LINKED too — see auth_service.link_identity), which
+  /// needs the same restore-or-start-fresh choice normal sign-in shows
+  /// (sign_in_screen.dart's _completeSignIn), not to be treated as an
+  /// already-completed sign-in. AppState has no BuildContext to show that
+  /// dialog with, so callers resolve the response themselves via
+  /// resolveSignInResponse (restorable_account_dialog.dart) before calling
+  /// handleSignedIn.
+  Future<Map<String, dynamic>> switchToExistingAccount(String identityToken) {
+    return api.signIn('firebase', identityToken: identityToken);
   }
 
   void handlePlantSaved(Plant newPlant) {

@@ -63,6 +63,18 @@ android {
     buildTypes {
         release {
             signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            // Explicit now (Flutter's Gradle plugin was already applying
+            // R8 shrinking by default for `flutter build apk --release`
+            // even with nothing set here — that's how a real bug slipped
+            // through: obfuscated release-only class names, e.g. "we"/"i32",
+            // showed up in a crash log despite no minifyEnabled anywhere in
+            // this file). Wiring in proguard-rules.pro explicitly, alongside
+            // Android's own default optimize rules, so its Gson/TypeToken
+            // keep rules actually apply — see that file's own docstring for
+            // the exact bug this fixes (flutter_local_notifications ships
+            // no consumer ProGuard rules of its own).
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }

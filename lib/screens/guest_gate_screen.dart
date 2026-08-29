@@ -7,6 +7,7 @@ import '../api/client.dart';
 import '../app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
+import '../widgets/restorable_account_dialog.dart';
 
 class GuestGateScreen extends StatefulWidget {
   const GuestGateScreen({super.key});
@@ -21,7 +22,12 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
   Future<void> _completeLink(fb.AuthCredential credential) async {
     final appState = context.read<AppState>();
     final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
-    final identityToken = await userCredential.user!.getIdToken();
+    // See sign_in_screen.dart's _completeFirebaseSignIn for why: a brand-
+    // new account's first ID token can be minted just before Firebase
+    // finishes populating the profile from the provider credential, so
+    // getIdToken() alone can silently miss the "name" claim.
+    await userCredential.user!.reload();
+    final identityToken = await userCredential.user!.getIdToken(true);
     try {
       await appState.handleLinkAccount(identityToken!);
       if (!mounted) return;
@@ -55,9 +61,15 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
         ),
       );
       if (proceed == true) {
-        // handleSignedIn (inside switchToExistingAccount) already
-        // navigates to Home on its own — nothing further to do here.
-        await appState.switchToExistingAccount(identityToken!);
+        final data = await appState.switchToExistingAccount(identityToken!);
+        if (!mounted) return;
+        // The "existing account" can itself be one deleted less than 24h
+        // ago — resolveSignInResponse shows the same restore-or-start-fresh
+        // choice normal sign-in does if so; a plain signed_in response
+        // passes straight through. handleSignedIn then navigates to Home
+        // on its own — nothing further to do here.
+        final resolved = await resolveSignInResponse(context, appState, data, provider: 'firebase', identityToken: identityToken);
+        if (resolved != null) await appState.handleSignedIn(resolved);
       }
     }
   }

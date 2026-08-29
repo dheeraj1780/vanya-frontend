@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../api/client.dart';
@@ -39,11 +38,9 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
       return;
     }
 
-    final source = await showImageSourceSheet(context);
-    if (source == null) return;
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 1024);
+    final file = await pickPlantImage(context);
     if (file == null) return;
+    if (!mounted) return;
     final bytes = await File(file.path).readAsBytes();
     final imageBase64 = base64Encode(bytes);
 

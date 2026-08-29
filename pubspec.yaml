@@ -60,6 +60,7 @@ dependencies:
   # Plays the bundled intro video on cold start (see screens/splash_screen.dart).
   video_player: ^2.9.5
   home_widget: ^0.9.3
+  firebase_messaging: ^15.2.10
 
 dev_dependencies:
   flutter_test:

@@ -9,6 +9,7 @@ import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/plan_badge.dart';
 import '../widgets/primary_button.dart';
+import '../widgets/restorable_account_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -38,7 +39,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          maxLength: 100,
+          // Was 100 — genuinely no real name needs that much room, and it
+          // let someone drag the counter/field into looking broken. 50 is
+          // plenty (comfortably covers real full names, incl. longer
+          // South/Southeast Asian and multi-part Western ones) without the
+          // dialog inviting essay-length input.
+          maxLength: 50,
           decoration: const InputDecoration(hintText: 'e.g. Priya'),
         ),
         actions: [
@@ -154,7 +160,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _completeLink(fb.AuthCredential credential) async {
     final appState = context.read<AppState>();
     final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
-    final identityToken = await userCredential.user!.getIdToken();
+    // See sign_in_screen.dart's _completeFirebaseSignIn for why: a brand-
+    // new account's first ID token can be minted just before Firebase
+    // finishes populating the profile from the provider credential, so
+    // getIdToken() alone can silently miss the "name" claim.
+    await userCredential.user!.reload();
+    final identityToken = await userCredential.user!.getIdToken(true);
     try {
       await appState.handleLinkAccount(identityToken!);
     } on ApiException catch (err) {
@@ -186,9 +197,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
       if (proceed == true) {
-        // handleSignedIn (inside switchToExistingAccount) already
-        // navigates to Home on its own — nothing further to do here.
-        await appState.switchToExistingAccount(identityToken!);
+        final data = await appState.switchToExistingAccount(identityToken!);
+        if (!mounted) return;
+        // The "existing account" can itself be one deleted less than 24h
+        // ago — resolveSignInResponse shows the same restore-or-start-fresh
+        // choice normal sign-in does if so; a plain signed_in response
+        // passes straight through. handleSignedIn then navigates to Home.
+        final resolved = await resolveSignInResponse(context, appState, data, provider: 'firebase', identityToken: identityToken);
+        if (resolved != null) await appState.handleSignedIn(resolved);
       }
     }
   }
@@ -329,10 +345,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     label: 'Name',
                     trailingWidget: _savingName
                         ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text(
-                            (appState.userName?.isNotEmpty ?? false) ? appState.userName! : 'Add your name',
-                            style: TextStyle(
-                              color: (appState.userName?.isNotEmpty ?? false) ? AppColors.textOf(context) : AppColors.textSecondaryOf(context),
+                        : ConstrainedBox(
+                            // Caps how wide the name can get before it starts
+                            // eating into the chevron/row edge — names are
+                            // allowed up to 50 chars (see _editName), so
+                            // without this an unusually long one would blow
+                            // out the row width instead of just truncating.
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Text(
+                              (appState.userName?.isNotEmpty ?? false) ? appState.userName! : 'Add your name',
+                              style: TextStyle(
+                                color: (appState.userName?.isNotEmpty ?? false) ? AppColors.textOf(context) : AppColors.textSecondaryOf(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                     onTap: _savingName ? () {} : _editName,

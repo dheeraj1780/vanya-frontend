@@ -21,25 +21,84 @@ class CustomBottomNav extends StatelessWidget {
     required this.onReminders,
   });
 
+  static const double _pillHeight = 68;
+  // How far the raised Scan circle needs to protrude above the pill —
+  // matches the old Positioned(top: -38) offset plus a little slack.
+  static const double _scanRaise = 34;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-      child: Container(
-        height: 68,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 20, offset: const Offset(0, 8))],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      // BUG (reported: "the scan icon isn't working, I had to click on the
+      // word"): the raised circle used to be painted via a negative
+      // Positioned offset *outside* this whole widget's own box (which was
+      // exactly _pillHeight tall). Flutter's hit-testing is bounded by each
+      // RenderBox's own resolved size — Clip.none only affects painting,
+      // never hit-testing — so taps landing on the visible circle never
+      // reached any GestureDetector; only the "Scan" label beneath it,
+      // which actually sat inside that box, ever worked.
+      //
+      // Fix: reserve real height for the circle (_pillHeight + _scanRaise)
+      // instead of visual-only overflow, but keep painting the pill
+      // background only across its original slim height so the look is
+      // unchanged — the Scan button is a second overlay, structurally
+      // mirrored (same padding, same four 62-wide slots, same
+      // spaceBetween) so its slot lines up exactly with the Row's real one
+      // regardless of screen width, without hand-picking a hardcoded X.
+      child: SizedBox(
+        height: _pillHeight + _scanRaise,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home', selected: current == 'home', onTap: onHome),
-            _NavItem(icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view, label: 'My Plants', selected: current == 'myPlants', onTap: onMyPlants),
-            _ScanButton(onTap: onScan),
-            _NavItem(icon: Icons.notifications_none, activeIcon: Icons.notifications, label: 'Reminders', selected: current == 'reminders', onTap: onReminders),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: _pillHeight,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceOf(context),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.10), blurRadius: 20, offset: const Offset(0, 8))],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home', selected: current == 'home', onTap: onHome),
+                    _NavItem(icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view, label: 'My Plants', selected: current == 'myPlants', onTap: onMyPlants),
+                    // Real space reserved for Scan's slot — the tappable
+                    // button itself is the overlay below, so its raised
+                    // circle isn't clipped down to this pill's own height.
+                    const SizedBox(width: 62),
+                    _NavItem(icon: Icons.notifications_none, activeIcon: Icons.notifications, label: 'Reminders', selected: current == 'reminders', onTap: onReminders),
+                  ],
+                ),
+              ),
+            ),
+            // Mirrors the Row above exactly (same outer padding, same
+            // four 62-wide items, same spaceBetween) so the real
+            // _ScanButton's horizontal position matches the reserved slot
+            // precisely, without hardcoding an X offset that would drift
+            // on a different screen width.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 62),
+                    const SizedBox(width: 62),
+                    _ScanButton(onTap: onScan),
+                    const SizedBox(width: 62),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -113,32 +172,41 @@ class _ScanButton extends StatelessWidget {
         onTap: onTap,
         child: SizedBox(
           width: 62,
-          // BUG-H004: an OverflowBox/Transform combo here still left "Scan"
-          // a hair off from Home/My Plants/Reminders' labels — a Transform
-          // doesn't add layout height, but OverflowBox's own resolved size
-          // (and how it aligns a bigger child within a smaller one) isn't
-          // as pixel-predictable as just... not sharing layout space with
-          // the label at all. This Stack fully decouples the two: the
-          // Column below is byte-for-byte the same shape as _NavItem's
-          // (22px slot + 3px gap + label), just with an invisible
-          // placeholder instead of a real icon, so "Scan" lands on exactly
-          // the same baseline as the other three, guaranteed — the raised
-          // circle is a separate Positioned overlay that doesn't
-          // participate in that layout at all, purely visual.
+          // Real height (not just visual overflow) — see the docstring on
+          // CustomBottomNav.build for why this matters: it's what makes
+          // the raised circle itself tappable, not just the label under it.
+          height: CustomBottomNav._pillHeight + CustomBottomNav._scanRaise,
           child: Stack(
             clipBehavior: Clip.none,
-            alignment: Alignment.topCenter,
             children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 22, height: 22),
-                  const SizedBox(height: 3),
-                  Text('Scan', style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
-                ],
+              // BUG (reported: "the scan icon has been pushed down" — the
+              // label sat visibly lower than Home/My Plants/Reminders'):
+              // this used to bottom-align flush against this box's own
+              // (taller, _pillHeight + _scanRaise) bottom edge — but
+              // _NavItem centers its label within just the pill's own
+              // _pillHeight, leaving equal space above and below, so
+              // "flush with the very bottom" landed noticeably lower than
+              // that. Constraining this to exactly _pillHeight, anchored
+              // to the same bottom edge, and centering within *that*
+              // (mainAxisAlignment.center, same as _NavItem) reproduces
+              // _NavItem's own vertical centering exactly, instead of
+              // approximating it.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: CustomBottomNav._pillHeight,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(width: 22, height: 22),
+                    const SizedBox(height: 3),
+                    Text('Scan', style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
+                  ],
+                ),
               ),
               Positioned(
-                top: -38,
+                top: 0,
                 left: 0,
                 right: 0,
                 child: Center(

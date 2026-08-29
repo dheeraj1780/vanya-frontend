@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -23,12 +24,19 @@ import 'screens/reminders_screen.dart';
 import 'screens/my_plants_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
+import 'services/push_notification_service.dart';
 import 'widgets/custom_bottom_nav.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await NotificationService.instance.init();
+  // Server-sent announcements/feature call-outs — separate system from the
+  // local watering reminders above (see PushNotificationService's own
+  // docstring). Initialized unconditionally at startup, same as
+  // NotificationService, since receiving these isn't tied to the
+  // reminders_enabled preference at all.
+  await PushNotificationService.instance.init();
   // No purchase SDK to configure here — VANYA sells subscriptions on the
   // website (vanya-web/), not inside this app. See
   // backend/app/services/billing_service.py's module docstring for why
@@ -59,7 +67,16 @@ class _PlantCompanionAppState extends State<PlantCompanionApp> with WidgetsBindi
   // vs home) before runApp() was called — the splash is purely a
   // presentation gate shown once on top of that, not part of AppState's own
   // routing, so it doesn't need to know or care which screen is under it.
-  bool _showSplash = true;
+  //
+  // Seeded from AppState.hasSeenIntro (disk-backed), not hardcoded true —
+  // see that field's own docstring: Android can kill this app's process in
+  // the background at any time to reclaim memory, and silently restarts it
+  // (a real cold start at the Dart level) the moment the user taps back
+  // into it, indistinguishable from a genuine cold start unless something
+  // survives the process death. A plain in-memory bool here used to make
+  // the intro replay "inconsistently" depending on whether Android had
+  // reclaimed the process since the user last looked at the app.
+  late bool _showSplash = !context.read<AppState>().hasSeenIntro;
 
   @override
   void initState() {
@@ -97,7 +114,14 @@ class _PlantCompanionAppState extends State<PlantCompanionApp> with WidgetsBindi
       // a value on AppState, rather than following the OS setting — same
       // as the React version's own toggle rather than a system preference.
       themeMode: ThemeMode.system,
-      home: _showSplash ? SplashScreen(onDone: () => setState(() => _showSplash = false)) : const RootRouter(),
+      home: _showSplash
+          ? SplashScreen(
+              onDone: () {
+                unawaited(context.read<AppState>().markIntroSeen());
+                setState(() => _showSplash = false);
+              },
+            )
+          : const RootRouter(),
     );
   }
 }

@@ -16,6 +16,22 @@
          PermissionsScreen._handleAllow and settings_subscreens.dart's camera
          status check) does. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- THE actual root cause of "watering reminders never appear": the
+         AlarmManager alarm scheduled by flutter_local_notifications fires
+         correctly at the OS level (confirmed via `dumpsys alarm` — it
+         genuinely wakes up on schedule), but Android has nowhere to
+         deliver that broadcast to without this. The plugin's own
+         AndroidManifest.xml (bundled in its AAR) declares nothing beyond
+         two <uses-permission> tags — unlike most Flutter plugins, it does
+         NOT auto-register its receivers via manifest merging. The app is
+         required to declare them itself (documented in the plugin's own
+         README, under "To schedule notifications"), which this project
+         never did. Net effect: every scheduled alarm fired into the void
+         with no receiver to catch it — no crash, no log line, nothing to
+         debug, just silence indistinguishable from "never scheduled at
+         all" (which is exactly what two earlier, real bugs in
+         NotificationService looked like before this one was found). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:label="VANYA"
         android:name="${applicationName}"
@@ -66,6 +82,26 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
+        </receiver>
+        <!-- flutter_local_notifications' own required receivers — see the
+             uses-permission comment above this <application> tag for why
+             these matter. ScheduledNotificationReceiver is what actually
+             fires when a scheduled watering reminder's alarm goes off;
+             ScheduledNotificationBootReceiver re-arms every pending
+             reminder after a device reboot, since AlarmManager alarms
+             don't survive one on their own. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
         <!-- Don't delete the meta-data below.

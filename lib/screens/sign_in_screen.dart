@@ -5,9 +5,9 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../api/client.dart';
 import '../app_state.dart';
-import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
+import '../widgets/restorable_account_dialog.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -41,7 +41,18 @@ class _SignInScreenState extends State<SignInScreen> {
   /// native SDKs instead of a browser popup.
   Future<void> _completeFirebaseSignIn(fb.AuthCredential credential) async {
     final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
-    final identityToken = await userCredential.user!.getIdToken();
+    // BUG (reported: a brand-new Google account's name wasn't getting
+    // auto-captured): for a JUST-created account, the ID token minted as
+    // part of this very sign-in call can lag one beat behind the user
+    // profile Firebase just populated from the Google credential — a
+    // known Firebase SDK race, not specific to this app. getIdToken()
+    // without forceRefresh can hand back that stale pre-profile token,
+    // silently missing the "name" claim our backend's auto-capture
+    // (create_user's name=... — see auth_service.py) reads from. reload()
+    // + getIdToken(true) re-mints against the now-fully-populated profile
+    // before we ever send it to our backend.
+    await userCredential.user!.reload();
+    final identityToken = await userCredential.user!.getIdToken(true);
     if (!mounted) return;
     await _completeSignIn('firebase', identityToken: identityToken);
   }
@@ -53,33 +64,19 @@ class _SignInScreenState extends State<SignInScreen> {
   /// the person picks. A plain "signed_in" response skips straight through.
   Future<void> _completeSignIn(String provider, {String? identityToken, String? deviceUuid}) async {
     final appState = context.read<AppState>();
-    var data = await appState.api.signIn(provider, identityToken: identityToken, deviceUuid: deviceUuid);
+    final data = await appState.api.signIn(provider, identityToken: identityToken, deviceUuid: deviceUuid);
 
-    if (data['status'] == 'restorable') {
-      if (!mounted) return;
-      final restorableUntil = parseUtcDateTime(data['restorable_until']);
-      final choice = await showDialog<_RestoreChoice>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => _RestorableAccountDialog(restorableUntil: restorableUntil),
-      );
-
-      if (choice == null) {
-        // Dialog dismissed without a choice — stay on the sign-in screen
-        // rather than hanging in a "loading" state.
-        setState(() => _status = 'idle');
-        return;
-      }
-
-      if (choice == _RestoreChoice.restore) {
-        data = await appState.api.restoreAccount(provider, identityToken: identityToken, deviceUuid: deviceUuid);
-      } else {
-        data = await appState.api.restartAccount(provider, identityToken: identityToken, deviceUuid: deviceUuid);
-      }
+    if (!mounted) return;
+    final resolved = await resolveSignInResponse(context, appState, data, provider: provider, identityToken: identityToken, deviceUuid: deviceUuid);
+    if (resolved == null) {
+      // Restorable dialog dismissed without a choice — stay on the
+      // sign-in screen rather than hanging in a "loading" state.
+      setState(() => _status = 'idle');
+      return;
     }
 
     if (!mounted) return;
-    await appState.handleSignedIn(data);
+    await appState.handleSignedIn(resolved);
   }
 
   Future<void> _handleGoogle() async {
@@ -216,36 +213,3 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 }
 
-enum _RestoreChoice { restore, restart }
-
-/// Shown when signing back in with an identity whose account was deleted
-/// less than 24h ago (see auth_service.sign_in's status="restorable").
-/// Deliberately barrier-dismissible: false and requires an explicit tap —
-/// no default action is safe to assume on the user's behalf here.
-class _RestorableAccountDialog extends StatelessWidget {
-  const _RestorableAccountDialog({required this.restorableUntil});
-
-  final DateTime restorableUntil;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Welcome back'),
-      content: Text(
-        'This account was deleted, but you can still restore it — you have until '
-        '${formatFriendlyDeadline(restorableUntil)} to decide. '
-        'Restore your plants and pick up where you left off, or start a brand-new account instead.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_RestoreChoice.restart),
-          child: const Text('Start fresh'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_RestoreChoice.restore),
-          child: const Text('Restore my data', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600)),
-        ),
-      ],
-    );
-  }
-}

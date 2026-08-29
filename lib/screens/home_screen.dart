@@ -70,27 +70,45 @@ class HomeScreen extends StatelessWidget {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          // Center, not start: with the badge now on its own line below the
+          // greeting, this block is taller than the 40px profile icon —
+          // top-aligning them left the icon looking stranded near the top
+          // instead of sitting level with the text.
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(_greeting(appState.userName), style: AppTypography.h1(AppColors.textOf(context))),
-                    const SizedBox(width: 8),
-                    // "Something recognizable" per tier — a quick glance at
-                    // the greeting tells you (and reminds you) which plan
-                    // you're on, not just when you happen to open Settings.
-                    PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} need water today',
-                  style: AppTypography.body(AppColors.textSecondaryOf(context)),
-                ),
-              ],
+            // Flexible (loose fit), not Expanded: caps the width so a long
+            // name (e.g. "Good morning, Chandrasekaran") can never push the
+            // profile icon off the right edge of the screen, but — unlike
+            // Expanded — still lets the Column shrink to its actual content
+            // width for a short greeting, so the profile icon sits
+            // naturally close instead of pinned to the screen edge with a
+            // dead gap in between.
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Ellipsis, not truncated by a neighboring badge anymore
+                  // (moved below) — this only ever needs to protect against
+                  // the profile icon, so a long name now reads in full far
+                  // more often instead of cutting off after a few letters.
+                  Text(
+                    _greeting(appState.userName),
+                    style: AppTypography.h1(AppColors.textOf(context)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  // Own line, below the greeting — sharing a line with a
+                  // long name was what caused the greeting to get cut off
+                  // and, before that, pushed the badge itself off-screen.
+                  PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
+                  const SizedBox(height: 3),
+                  Text(
+                    duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} need water today',
+                    style: AppTypography.body(AppColors.textSecondaryOf(context)),
+                  ),
+                ],
+              ),
             ),
             GestureDetector(
               onTap: () => appState.goTo('settings'),

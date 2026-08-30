@@ -626,6 +626,11 @@ class AppState extends ChangeNotifier {
   void handleWishlistItemSaved(Plant newItem) {
     wishlist = [newItem, ...wishlist];
     unawaited(refreshEntitlement());
+    // BUG this fixes: landed on 'myPlants' with the Garden tab still
+    // showing (myPlantsShowWishlist defaults false) — the plant someone
+    // just chose "Save to wishlist" for is on the OTHER tab, so it looked
+    // like it vanished instead of actually being saved.
+    myPlantsShowWishlist = true;
     goTo('myPlants');
   }
 

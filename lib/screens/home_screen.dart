@@ -68,58 +68,101 @@ class HomeScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 110), // extra bottom padding clears the floating nav
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          // Center, not start: with the badge now on its own line below the
-          // greeting, this block is taller than the 40px profile icon —
-          // top-aligning them left the icon looking stranded near the top
-          // instead of sitting level with the text.
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Flexible (loose fit), not Expanded: caps the width so a long
-            // name (e.g. "Good morning, Chandrasekaran") can never push the
-            // profile icon off the right edge of the screen, but — unlike
-            // Expanded — still lets the Column shrink to its actual content
-            // width for a short greeting, so the profile icon sits
-            // naturally close instead of pinned to the screen edge with a
-            // dead gap in between.
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Ellipsis, not truncated by a neighboring badge anymore
-                  // (moved below) — this only ever needs to protect against
-                  // the profile icon, so a long name now reads in full far
-                  // more often instead of cutting off after a few letters.
-                  Text(
-                    _greeting(appState.userName),
-                    style: AppTypography.h1(AppColors.textOf(context)),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  // Own line, below the greeting — sharing a line with a
-                  // long name was what caused the greeting to get cut off
-                  // and, before that, pushed the badge itself off-screen.
-                  PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
-                  const SizedBox(height: 3),
-                  Text(
-                    duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} need water today',
-                    style: AppTypography.body(AppColors.textSecondaryOf(context)),
-                  ),
-                ],
+        // A bounded card, not a bare Row loose in the page's padding — this
+        // is the very top of the app, and stacking the greeting, plan
+        // badge, status line, and a small round profile icon all directly
+        // on the page background (previous layout) gave it no visual edge
+        // to read as "the top section" versus everything scrolling below
+        // it. A soft surface + border + shadow gives it that boundary, and
+        // the avatar now anchors the whole block at a consistent height
+        // instead of floating separately at the top-right.
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceOf(context),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.borderOf(context)),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 6))],
+          ),
+          child: Row(
+            // start, not center: once the greeting can wrap to 2 lines
+            // (below), center-aligning made the avatar drift toward the
+            // vertical middle of the whole taller block instead of sitting
+            // level with the first line of text, like a name tag reads.
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar + plan badge stacked in their own left column, not
+              // the avatar alone — with the greeting now up to 2 lines
+              // tall, a lone 46px avatar left a noticeably empty gap below
+              // it next to the taller text block. Anchoring the badge here
+              // fills that gap instead of leaving it bare.
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: () => appState.goTo('settings'),
+                      child: Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryTintPairOf(context).$1,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.primaryTintPairOf(context).$2.withValues(alpha: 0.3), width: 1.5),
+                        ),
+                        child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 21),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
+                  ],
+                ),
               ),
-            ),
-            GestureDetector(
-              onTap: () => appState.goTo('settings'),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: AppColors.primaryTintPairOf(context).$1, shape: BoxShape.circle),
-                child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 19),
+              const SizedBox(width: 14),
+              // Expanded, not Flexible — nothing else on this row needs to
+              // shrink to content width now, so it can just claim the rest
+              // of the card.
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // maxLines: 2, not 1 — a 1-line cap on a serif h2 is
+                    // what forced "Good morning, Chandrasekaran" down to
+                    // "Good morning, Chan..." for any real name longer than
+                    // ~10-11 characters. At h2's 19px Fraunces (~10dp/char
+                    // for this bold serif), this card's text column is
+                    // roughly 340dp - (avatar/badge column width, ~60dp for
+                    // the Guest/Plantie/Green Thumb badges, up to ~150dp
+                    // for the longer "Photosynthesis PhD" one) - 14dp gap
+                    // wide — call it ~34 characters/line, ~68 total, in the
+                    // common (short-badge) case. _editName's 40-char cap
+                    // (settings_screen.dart) is sized against that: minus
+                    // the longest prefix "Good afternoon, " (17 chars),
+                    // that's comfortable room for real names to always show
+                    // in full. The rare edge case (a maxed-out 40-char name
+                    // AND the widest Photosynthesis PhD badge AND a narrow
+                    // phone) still degrades gracefully to the ellipsis
+                    // below rather than breaking the layout — this is
+                    // sized for the common case, not a hard guarantee.
+                    Text(
+                      _greeting(appState.userName),
+                      style: AppTypography.h2(AppColors.textOf(context)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} need water today',
+                      style: AppTypography.body(AppColors.textSecondaryOf(context)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 26),
 

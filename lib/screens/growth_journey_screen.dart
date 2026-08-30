@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -101,10 +102,12 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
     final plant = appState.growthJourneyPlant;
     if (plant == null) return;
 
-    final source = await showImageSourceSheet(context);
-    if (source == null) return;
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 1024);
+    // pickPlantImage (not a bare showImageSourceSheet+ImagePicker call) —
+    // this used to skip the camera-permission check entirely, so a
+    // revoked/"only this time" grant made "Take photo" here a silent dead
+    // button, same class of bug as ONB-008 on Add Plant/Diagnose (see
+    // pickPlantImage's own docstring).
+    final file = await pickPlantImage(context);
     if (file == null) return;
     if (!mounted) return;
 
@@ -321,7 +324,18 @@ class _VineView extends StatelessWidget {
     return LayoutBuilder(builder: (context, constraints) {
       final width = constraints.maxWidth;
       final center = width / 2;
-      final totalHeight = _rootHeight + _tipHeight + memories.length * _nodeSpacing + (memories.isEmpty ? 60 : 0);
+      final contentHeight = _rootHeight + _tipHeight + memories.length * _nodeSpacing + (memories.isEmpty ? 60 : 0);
+      // At least the visible viewport's height, not just whatever the vine's
+      // own content needs — with few/no memories, contentHeight used to be
+      // far shorter than the screen, so the background (painted only within
+      // this box, same height as the content) stopped partway down and left
+      // a bare gap of plain scaffold color above the pot instead of the
+      // chosen wallpaper filling the whole screen. The pot/root anchor stays
+      // pinned to the bottom of this taller box either way (see anchors
+      // below), so this only stretches the empty space above it — already
+      // scrollable content (many memories) is unaffected since contentHeight
+      // already exceeds the viewport there.
+      final totalHeight = math.max(contentHeight, constraints.maxHeight);
 
       // Anchor points bottom-to-top: root -> oldest memory -> ... -> newest -> tip.
       // The root anchor sits near the TOP of the pot's box (where soil/rim
@@ -383,7 +397,7 @@ class _VineView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text('PLANTED', style: AppTypography.caption(AppColors.textSecondaryOf(context))),
+                      _ReadableLabel(text: 'PLANTED', style: AppTypography.caption(AppColors.textSecondaryOf(context))),
                     ],
                   ),
                 ),
@@ -401,8 +415,8 @@ class _VineView extends StatelessWidget {
                   right: 24,
                   top: totalHeight / 2 - 40,
                   child: Center(
-                    child: Text(
-                      'No memories yet — tap + to add the first one.',
+                    child: _ReadableLabel(
+                      text: 'No memories yet — tap + to add the first one.',
                       textAlign: TextAlign.center,
                       style: AppTypography.body(AppColors.textSecondaryOf(context)),
                     ),
@@ -430,20 +444,9 @@ class _VineView extends StatelessWidget {
                           child: ClipOval(child: PlantImage(url: memories[i].photoUrl, borderRadius: 999)),
                         ),
                         const SizedBox(height: 6),
-                        // Small backdrop, not bare text — the stem's curve
-                        // sometimes passes directly behind a date label
-                        // (see the two side-offset node positions above),
-                        // which read as illegible without this.
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.bgOf(context).withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                          child: Text(
-                            _formatDate(memories[i].createdAt),
-                            style: AppTypography.caption(AppColors.textSecondaryOf(context)),
-                          ),
+                        _ReadableLabel(
+                          text: _formatDate(memories[i].createdAt),
+                          style: AppTypography.caption(AppColors.textSecondaryOf(context)),
                         ),
                       ],
                     ),
@@ -514,6 +517,34 @@ class _VineView extends StatelessWidget {
   /// plain generic pot when there's no preset (no background chosen yet,
   /// or a custom gallery photo, which has no themed pot of its own).
   String _potAssetPath() => _currentPreset()?.potAssetPath ?? 'assets/images/growth_pot.png';
+}
+
+/// Small opaque-ish backdrop behind any text sitting directly on top of a
+/// background photo/texture — was originally just the date labels'
+/// pattern (the stem's curve sometimes passes right behind one), pulled
+/// out and reused for "PLANTED" and the empty-state message too, which
+/// used to be bare Text and genuinely unreadable against several of the
+/// darker bundled backgrounds (Gothic Botanical, Forest Dusk, Rainforest —
+/// see kGrowthBackgroundPresets) since textSecondaryOf(context) is a
+/// muted, low-contrast color chosen for a plain scaffold background, not
+/// an arbitrary photo behind it.
+class _ReadableLabel extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  final TextAlign? textAlign;
+  const _ReadableLabel({required this.text, required this.style, this.textAlign});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.bgOf(context).withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Text(text, style: style, textAlign: textAlign),
+    );
+  }
 }
 
 class _VinePainter extends CustomPainter {

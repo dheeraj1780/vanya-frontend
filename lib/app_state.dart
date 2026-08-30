@@ -118,6 +118,15 @@ class AppState extends ChangeNotifier {
   // both lists, which would be a real behavior change for those screens.
   String? growthJourneyPlantId;
 
+  // Which tab MyPlantsScreen should show — used to used to live purely as
+  // local State on that screen, which meant it reset to "My Garden" every
+  // time the screen was rebuilt from scratch (which it always is: main.dart
+  // swaps in a brand-new MyPlantsScreen() whenever `screen` flips away and
+  // back, there's no persistent widget to preserve local state on). Reported
+  // as: open a wishlist plant's Growth Journey, tap back, and you land back
+  // on "My Garden" instead of "Wishlist" even though that's where you were.
+  bool myPlantsShowWishlist = false;
+
   Plant? get growthJourneyPlant {
     if (growthJourneyPlantId == null) return null;
     try {
@@ -198,6 +207,30 @@ class AppState extends ChangeNotifier {
     } else {
       screen = fallback;
     }
+    notifyListeners();
+  }
+
+  /// For a dismiss/X-style action that computes its own specific target
+  /// (PaywallScreen's close button, which resolves to `returnTo` — or, mid
+  /// guest-sign-in-to-subscribe detour, `paywallReturnTo` — rather than
+  /// literally "undo the last goTo"). Unlike goTo(), this never pushes the
+  /// screen being left onto history — closing a screen is going *back*,
+  /// not forward — and pops the top of history when it already equals
+  /// `target`, so the very next real back-navigation doesn't loop through
+  /// this now-closed screen either.
+  ///
+  /// BUG this fixes: PaywallScreen used to call plain goTo(target) here,
+  /// which — since target differs from the current screen — pushed
+  /// 'paywall' itself onto history. Growth Journey -> hit the plan limit
+  /// -> paywall -> close (goTo pushes 'paywall') -> back on Growth Journey
+  /// -> tap its own Back button -> pops that just-pushed 'paywall' ->
+  /// right back on the paywall. Reported as "if I click back on growth
+  /// journey I get to the paywall again."
+  void dismissTo(String target) {
+    if (_screenHistory.isNotEmpty && _screenHistory.last == target) {
+      _screenHistory.removeLast();
+    }
+    screen = target;
     notifyListeners();
   }
 

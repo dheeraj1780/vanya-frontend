@@ -148,6 +148,17 @@ class ApiClient {
     return data as Map<String, dynamic>;
   }
 
+  /// A short-lived, single-use Firebase custom token for the currently
+  /// signed-in account — see PaywallScreen._openWebsite. Lets the VANYA
+  /// website sign in as this SAME account automatically instead of
+  /// showing a bare browser sign-in picker, where it's easy to tap a
+  /// different Google account by mistake and end up subscribing on the
+  /// wrong one.
+  Future<String> createWebHandoffToken(String token) async {
+    final data = await _request('/auth/web-handoff-token', method: 'POST', token: token);
+    return (data as Map<String, dynamic>)['custom_token'] as String;
+  }
+
   // ---- Plants ----
   Future<List<Plant>> listPlants(
     String token, {

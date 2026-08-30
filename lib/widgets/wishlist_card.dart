@@ -40,9 +40,33 @@ class WishlistCard extends StatelessWidget {
           // screen (see class docstring), so the photo taps through to the
           // same place that icon does: its Growth Journey.
           Expanded(
-            child: GestureDetector(
-              onTap: moving ? null : onOpenGrowthJourney,
-              child: PlantImage(url: plant.photoUrl, borderRadius: 0),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: moving ? null : onOpenGrowthJourney,
+                    child: PlantImage(url: plant.photoUrl, borderRadius: 0),
+                  ),
+                ),
+                // Remove moved here, off the photo's own tap target and
+                // physically apart from "Move to garden"/Growth Journey
+                // below — those three actions used to all sit in one
+                // cramped 4px-gap row, easy to mis-tap ("remove" right next
+                // to the two actions someone actually meant to hit).
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: GestureDetector(
+                    onTap: moving ? null : onRemove,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), shape: BoxShape.circle),
+                      child: const Icon(Icons.close, size: 14, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           Padding(
@@ -59,7 +83,7 @@ class WishlistCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
@@ -68,7 +92,7 @@ class WishlistCard extends StatelessWidget {
                         return GestureDetector(
                           onTap: moving ? null : onMoveToGarden,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            padding: const EdgeInsets.symmetric(vertical: 7),
                             decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadius.pill)),
                             child: Center(
                               child: moving
@@ -79,19 +103,21 @@ class WishlistCard extends StatelessWidget {
                         );
                       }),
                     ),
-                    const SizedBox(width: 4),
+                    // Clear gap (not the old 4px) and its own bordered,
+                    // larger tap target — reads as a deliberate second
+                    // action next to "Move to garden", not an accidental
+                    // extra icon crowding it.
+                    const SizedBox(width: 10),
                     GestureDetector(
                       onTap: moving ? null : onOpenGrowthJourney,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(Icons.eco_outlined, size: 16, color: AppColors.sage),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: moving ? null : onRemove,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(Icons.close, size: 16, color: AppColors.textSecondaryOf(context)),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.sageTintPairOf(context).$1,
+                        ),
+                        child: Icon(Icons.eco_outlined, size: 15, color: AppColors.sage),
                       ),
                     ),
                   ],

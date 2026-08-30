@@ -5,6 +5,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../api/client.dart';
 import '../app_state.dart';
+import '../config/feature_flags.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/restorable_account_dialog.dart';
@@ -193,8 +194,10 @@ class _SignInScreenState extends State<SignInScreen> {
                 style: AppTypography.body(AppColors.textSecondaryOf(context)),
               ),
               const SizedBox(height: 24),
-              SecondaryButton(label: 'Continue with Apple', onPressed: loading ? null : _handleApple),
-              const SizedBox(height: 10),
+              if (kAppleSignInEnabled) ...[
+                SecondaryButton(label: 'Continue with Apple', onPressed: loading ? null : _handleApple),
+                const SizedBox(height: 10),
+              ],
               SecondaryButton(label: 'Continue with Google', onPressed: loading ? null : _handleGoogle),
               const SizedBox(height: 18),
               TextButton(

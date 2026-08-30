@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../config/plans.dart';
 import '../config/web.dart';
 import '../theme/app_theme.dart';
+import '../widgets/plan_badge.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/vine_frame.dart';
 
@@ -43,7 +44,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
     final appState = context.read<AppState>();
     final target = _dismissTarget;
     appState.paywallReturnTo = null;
-    appState.goTo(target);
+    // dismissTo, not goTo — see AppState.dismissTo's docstring for the
+    // exact loop plain goTo() caused here: it pushed 'paywall' itself onto
+    // history on the way out, so the very next Back press on `target`
+    // (e.g. Growth Journey) landed right back on this paywall.
+    appState.dismissTo(target);
   }
 
   @override
@@ -54,9 +59,24 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   Future<void> _openWebsite(AppState appState) async {
     appState.trackEvent('subscription_purchase_started');
+    // Mint a one-time sign-in handoff token first so the website opens
+    // already signed into the SAME account as this app, not a bare sign-in
+    // picker — someone with several Google accounts on their phone can
+    // easily tap the wrong one there and end up subscribing an account
+    // that isn't the one actually using VANYA. Best-effort: a failure here
+    // (offline, token service hiccup, ...) still opens the site, just
+    // without the handoff — the user can sign in there manually same as
+    // before, so this never blocks the purchase entirely.
+    String query = '';
+    try {
+      final handoffToken = await appState.api.createWebHandoffToken(appState.token!);
+      query = '?auth_token=${Uri.encodeComponent(handoffToken)}';
+    } catch (e) {
+      debugPrint('Could not create web handoff token (opening without it): $e');
+    }
     // externalApplication, never an in-app WebView — the purchase must
     // happen fully outside this app (see class docstring).
-    final uri = Uri.parse('$kVanyaWebUrl/upgrade');
+    final uri = Uri.parse('$kVanyaWebUrl/upgrade$query');
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
@@ -72,6 +92,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final currentPlanKey = appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie');
+    final currentRank = kPlanRank.indexOf(currentPlanKey);
+    // Only real upgrades — a Green Thumb user hitting some Green-Thumb-tier
+    // limit (e.g. their one Growth Journey memory already used) used to
+    // still get offered Green Thumb itself right alongside Photosynthesis
+    // PhD, which does nothing for them and just reads as confusing/broken.
+    // kPlanRank.indexOf returns -1 for an unrecognized key, which makes
+    // this a no-op filter (every real plan ranks above -1) rather than an
+    // accidental "show nothing" if currentPlanKey is ever something odd.
+    final upgradePlans = kPaidPlanOrder.where((key) => kPlanRank.indexOf(key) > currentRank).toList();
 
     return Scaffold(
       backgroundColor: AppColors.bgOf(context),
@@ -103,15 +132,52 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     style: AppTypography.body(AppColors.textSecondaryOf(context)),
                   ),
                   const SizedBox(height: 20),
-                  for (final planKey in kPaidPlanOrder)
+                  // Shown as a compact strip, not a full duplicate plan
+                  // card below — re-pitching a tier the user already has
+                  // right alongside the real upgrade just reads as
+                  // confusing ("wait, am I supposed to buy this again?").
+                  // Still visibly names it as their current plan though.
+                  if (currentRank >= kPlanRank.indexOf('green_thumb'))
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _PlanCard(
-                        plan: kPlans[planKey]!,
-                        isCurrent: currentPlanKey == planKey,
-                        highlight: planKey == 'green_thumb',
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Row(
+                        children: [
+                          PlanBadge(planKey: currentPlanKey, compact: true),
+                          const SizedBox(width: 8),
+                          Text('Your current plan', style: AppTypography.caption(AppColors.textSecondaryOf(context))),
+                        ],
                       ),
                     ),
+                  if (upgradePlans.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryTintPairOf(context).$1,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.emoji_events_outlined, color: AppColors.primaryTintPairOf(context).$2),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "You're already on our top plan — thank you for growing with VANYA 🌳",
+                              style: AppTypography.bodyStrong(AppColors.primaryTintPairOf(context).$2),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    for (final planKey in upgradePlans)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _PlanCard(
+                          plan: kPlans[planKey]!,
+                          isCurrent: currentPlanKey == planKey,
+                          highlight: planKey == 'green_thumb',
+                        ),
+                      ),
                   const SizedBox(height: 8),
                   if (appState.isGuest) ...[
                     const Text('Sign in first', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -197,17 +263,22 @@ class _PlanCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(child: Text(plan.displayName, style: AppTypography.h3(AppColors.textOf(context)))),
-                if (highlight)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(AppRadius.pill)),
-                    child: const Text('MOST POPULAR', style: TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
-                  )
-                else if (isCurrent)
+                // isCurrent checked FIRST — a plan that's both "Most
+                // Popular" and the user's actual current plan must say
+                // CURRENT, not MOST POPULAR: showing an upsell ribbon on
+                // the tier someone is already paying for reads as "buy
+                // this again?", not as their status.
+                if (isCurrent)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(color: AppColors.sageTintPairOf(context).$1, borderRadius: BorderRadius.circular(AppRadius.pill)),
                     child: const Text('CURRENT', style: TextStyle(fontSize: 9.5, color: AppColors.sage, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+                  )
+                else if (highlight)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                    child: const Text('MOST POPULAR', style: TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
                   ),
               ],
             ),

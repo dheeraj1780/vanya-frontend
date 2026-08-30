@@ -5,6 +5,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../api/client.dart';
 import '../app_state.dart';
+import '../config/feature_flags.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/plan_badge.dart';
@@ -39,12 +40,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          // Was 100 — genuinely no real name needs that much room, and it
-          // let someone drag the counter/field into looking broken. 50 is
-          // plenty (comfortably covers real full names, incl. longer
-          // South/Southeast Asian and multi-part Western ones) without the
-          // dialog inviting essay-length input.
-          maxLength: 50,
+          // Was 100, then 50 — tied to an actual layout constraint now,
+          // not just "seems reasonable": HomeScreen's greeting renders as
+          // "Good morning/afternoon/evening, <name>" at AppTypography.h2
+          // (19px Fraunces SemiBold, ~10dp/character), wrapped to at most
+          // 2 lines in a column that's roughly 280dp wide on a standard
+          // phone (412dp screen − 40dp page padding − 32dp card padding −
+          // 60dp avatar+gap) — about 28 characters/line, 56 total. The
+          // longest prefix, "Good afternoon, " (17 chars), leaves ~39
+          // characters of guaranteed room for the name itself before the
+          // greeting would ever need to truncate. 40 keeps that headroom
+          // with a 1-character margin, comfortably covering real full
+          // names (including longer South/Southeast Asian and multi-part
+          // Western ones) while guaranteeing the greeting never has to
+          // fall back to an ellipsis.
+          maxLength: 40,
           decoration: const InputDecoration(hintText: 'e.g. Priya'),
         ),
         actions: [
@@ -316,8 +326,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  SecondaryButton(label: 'Link Apple account', onPressed: _linking ? null : _linkApple),
-                  const SizedBox(height: 8),
+                  if (kAppleSignInEnabled) ...[
+                    SecondaryButton(label: 'Link Apple account', onPressed: _linking ? null : _linkApple),
+                    const SizedBox(height: 8),
+                  ],
                   SecondaryButton(label: 'Link Google account', onPressed: _linking ? null : _linkGoogle),
                   if (_linkError.isNotEmpty)
                     Padding(
@@ -348,7 +360,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : ConstrainedBox(
                             // Caps how wide the name can get before it starts
                             // eating into the chevron/row edge — names are
-                            // allowed up to 50 chars (see _editName), so
+                            // allowed up to 40 chars (see _editName), so
                             // without this an unusually long one would blow
                             // out the row width instead of just truncating.
                             constraints: const BoxConstraints(maxWidth: 180),

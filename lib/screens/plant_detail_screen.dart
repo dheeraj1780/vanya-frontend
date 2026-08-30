@@ -26,6 +26,7 @@ class PlantDetailScreen extends StatefulWidget {
 class _PlantDetailScreenState extends State<PlantDetailScreen> {
   DiagnosisResult? _lastDiagnosis;
   bool _removing = false;
+  bool _savingNickname = false;
 
   @override
   void initState() {
@@ -42,6 +43,60 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
       if (mounted) setState(() => _lastDiagnosis = result);
     } catch (e) {
       debugPrint('Failed to check for a stored diagnosis: $e');
+    }
+  }
+
+  /// Renaming a plant — was referenced in the test plan but never actually
+  /// built: nickname is set once at scan time (always the AI's common
+  /// name, e.g. "Golden Pothos") and shown here as a plain, non-editable
+  /// Text. The backend has always fully supported this (PlantUpdateInput.
+  /// nickname -> PUT /plants/{id}, and ApiClient.updatePlant already
+  /// exists) — the whole gap was just this screen never offering a way to
+  /// call it. Unlike the account display name, an empty nickname isn't
+  /// allowed: this is the plant's only name everywhere else in the app
+  /// (Home, My Plants, Reminders), so leaving it blank would break those,
+  /// not just look empty.
+  Future<void> _editNickname(Plant plant) async {
+    final appState = context.read<AppState>();
+    final controller = TextEditingController(text: plant.nickname);
+    final newNickname = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Rename plant'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            maxLength: 50,
+            decoration: const InputDecoration(hintText: 'e.g. Baby Fern'),
+            onChanged: (_) => setDialogState(() {}),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+            TextButton(
+              onPressed: controller.text.trim().isEmpty ? null : () => Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (newNickname == null || newNickname == plant.nickname || !mounted) return;
+
+    setState(() => _savingNickname = true);
+    try {
+      final updated = await appState.api.updatePlant(appState.token!, plant.id, {'nickname': newNickname});
+      appState.updatePlantLocally(updated);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not rename this plant. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingNickname = false);
     }
   }
 
@@ -130,7 +185,20 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(plant.nickname, style: AppTypography.h1(AppColors.textOf(context))),
+                  GestureDetector(
+                    onTap: _savingNickname ? null : () => _editNickname(plant),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(child: Text(plant.nickname, style: AppTypography.h1(AppColors.textOf(context)))),
+                        const SizedBox(width: 8),
+                        _savingNickname
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : Icon(Icons.edit_outlined, size: 18, color: AppColors.textSecondaryOf(context)),
+                      ],
+                    ),
+                  ),
                   if (plant.species != null) ...[
                     const SizedBox(height: 3),
                     Text(plant.species!, style: AppTypography.bodyLarge(AppColors.textSecondaryOf(context)).copyWith(fontStyle: FontStyle.italic)),

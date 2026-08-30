@@ -25,15 +25,36 @@ class MyPlantsScreen extends StatefulWidget {
 }
 
 class _MyPlantsScreenState extends State<MyPlantsScreen> {
-  bool _showWishlist = false;
   bool _wishlistLoaded = false;
   String? _movingPlantId;
 
+  // Read/written through AppState.myPlantsShowWishlist (not local State) —
+  // see that field's own docstring for why: this screen gets torn down and
+  // rebuilt from scratch on every visit, so anything kept purely here forgot
+  // which tab was open the moment you navigated away and back.
+  bool get _showWishlist => context.read<AppState>().myPlantsShowWishlist;
+
+  @override
+  void initState() {
+    super.initState();
+    // Coming back to an already-remembered Wishlist tab (rather than
+    // switching to it just now via _switchTab) still needs its own load —
+    // this screen is a fresh State every visit, so _wishlistLoaded starts
+    // false regardless of which tab AppState remembers being open.
+    if (_showWishlist) {
+      _wishlistLoaded = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<AppState>().refreshWishlist();
+      });
+    }
+  }
+
   void _switchTab(bool wishlist) {
-    setState(() => _showWishlist = wishlist);
+    final appState = context.read<AppState>();
+    setState(() => appState.myPlantsShowWishlist = wishlist);
     if (wishlist && !_wishlistLoaded) {
       _wishlistLoaded = true;
-      context.read<AppState>().refreshWishlist();
+      appState.refreshWishlist();
     }
   }
 

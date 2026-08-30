@@ -139,3 +139,12 @@ const Map<String, PlanConfig> kPlans = {
 /// purchasable options (Plantie is never purchased, it's granted on
 /// sign-in; Guest is never shown on the paywall at all).
 const List<String> kPaidPlanOrder = ['green_thumb', 'photosynthesis_phd'];
+
+/// Every tier, worst to best — lets the paywall (and anything else that
+/// cares) ask "is plan X actually better than plan Y" instead of just
+/// "are these the same string". See PaywallScreen's plan filtering: a
+/// Green Thumb user hitting a Green-Thumb-exhausted limit (e.g. their one
+/// growth memory already used) should only ever be offered Photosynthesis
+/// PhD — re-offering the plan they're already on and which won't fix
+/// anything is confusing, not helpful.
+const List<String> kPlanRank = ['guest', 'plantie', 'green_thumb', 'photosynthesis_phd'];

@@ -732,6 +732,13 @@ class _AddMemorySheetState extends State<_AddMemorySheet> {
               autofocus: true,
               maxLength: 100,
               decoration: const InputDecoration(hintText: 'e.g. First new leaf'),
+              // BUG: Save memory's onPressed reads _nameController.text at
+              // build time, but nothing was ever wired to rebuild this
+              // sheet when that text changed — so it stayed disabled
+              // (evaluated once, against the initial empty text) no matter
+              // what got typed. onChanged forces the rebuild that was
+              // missing.
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 8),
             Text('NOTE · OPTIONAL', style: AppTypography.eyebrow(AppColors.sage)),

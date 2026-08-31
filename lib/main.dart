@@ -20,6 +20,7 @@ import 'screens/settings_subscreens.dart';
 import 'screens/guest_gate_screen.dart';
 import 'screens/calculators_screen.dart';
 import 'screens/growth_journey_screen.dart';
+import 'screens/wishlist_plant_detail_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/my_plants_screen.dart';
 import 'screens/splash_screen.dart';
@@ -196,6 +197,8 @@ class RootRouter extends StatelessWidget {
         return const CalculatorsScreen();
       case 'growthJourney':
         return const GrowthJourneyScreen();
+      case 'wishlistPlantDetail':
+        return const WishlistPlantDetailScreen();
       default:
         return const _TabShell(screen: 'home');
     }

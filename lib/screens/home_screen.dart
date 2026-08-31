@@ -213,7 +213,16 @@ class HomeScreen extends StatelessWidget {
           onAction: () => appState.goTo('myPlants'),
         ),
         const SizedBox(height: 12),
-        if (appState.plants.isEmpty)
+        if (appState.plants.isEmpty && !appState.hasLoadedPlantsOnce && appState.plantsLoadError.isEmpty)
+          // Still loading (or retrying) the very first fetch — NOT "no
+          // plants yet". A cold backend can genuinely take a while (see
+          // AppState.refreshPlants' doc); showing the same empty-garden
+          // prompt here is what taught people to force-close and reopen
+          // instead of just waiting a moment longer.
+          const _PlantsLoadingPrompt()
+        else if (appState.plants.isEmpty && appState.plantsLoadError.isNotEmpty)
+          _PlantsErrorPrompt(message: appState.plantsLoadError, onRetry: () => appState.refreshPlants())
+        else if (appState.plants.isEmpty)
           _EmptyPlantsPrompt(onScan: () => appState.goTo('addPlant'))
         else
           SizedBox(
@@ -299,6 +308,70 @@ class _QuickAction extends StatelessWidget {
             Icon(icon, color: AppColors.primary, size: 19),
             const SizedBox(width: 10),
             Expanded(child: Text(label, style: AppTypography.bodyStrong(AppColors.textOf(context)))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown while the very first plants fetch is still in flight (or being
+/// retried — see AppState.refreshPlants) — same footprint as
+/// _EmptyPlantsPrompt so nothing jumps around once real data or the empty
+/// state replaces it, but visually distinct (spinner, no "tap to scan"
+/// call to action) so it doesn't read as "you have no plants".
+class _PlantsLoadingPrompt extends StatelessWidget {
+  const _PlantsLoadingPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceOf(context),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.borderOf(context)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary)),
+          const SizedBox(height: 12),
+          Text('Loading your garden…', style: AppTypography.body(AppColors.textSecondaryOf(context))),
+        ],
+      ),
+    );
+  }
+}
+
+/// The first fetch genuinely failed (all of refreshPlants' retries used
+/// up) — was previously indistinguishable from "you have zero plants",
+/// which is what taught people to force-close and reopen the whole app
+/// instead of just tapping to try again.
+class _PlantsErrorPrompt extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _PlantsErrorPrompt({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onRetry,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.accentTintPairOf(context).$1,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.borderOf(context)),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.cloud_off_outlined, color: AppColors.accentTintPairOf(context).$2, size: 24),
+            const SizedBox(height: 10),
+            Text(message, textAlign: TextAlign.center, style: AppTypography.body(AppColors.textOf(context))),
+            const SizedBox(height: 8),
+            Text('Tap to retry', style: AppTypography.bodyStrong(AppColors.accentTintPairOf(context).$2)),
           ],
         ),
       ),

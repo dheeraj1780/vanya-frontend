@@ -166,9 +166,9 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                             moving: _movingPlantId == plant.id,
                             onMoveToGarden: () => _handleMoveToGarden(appState, plant.id),
                             onRemove: () => appState.handleRemoveFromWishlist(plant.id),
-                            onOpenGrowthJourney: () {
+                            onTap: () {
                               appState.growthJourneyPlantId = plant.id;
-                              appState.goTo('growthJourney', withReturnTo: 'myPlants');
+                              appState.goTo('wishlistPlantDetail', withReturnTo: 'myPlants');
                             },
                           );
                         },
@@ -177,11 +177,39 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 80),
-                          child: Text(
-                            appState.hasActiveFilters ? 'No plants match these filters.' : 'No plants yet — tap Scan to add your first one.',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.body(AppColors.textSecondaryOf(context)),
-                          ),
+                          child: !appState.hasLoadedPlantsOnce && appState.plantsLoadError.isEmpty
+                              // Still loading the first fetch, not actually
+                              // empty — same distinction Home makes (see
+                              // AppState.refreshPlants' doc); this screen
+                              // used to show the exact same "no plants
+                              // yet" text either way.
+                              ? const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary)),
+                                    SizedBox(height: 10),
+                                    Text('Loading your garden…'),
+                                  ],
+                                )
+                              : appState.plantsLoadError.isNotEmpty
+                                  ? GestureDetector(
+                                      onTap: () => appState.refreshPlants(),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.cloud_off_outlined, color: AppColors.accentTintPairOf(context).$2, size: 22),
+                                          const SizedBox(height: 8),
+                                          Text(appState.plantsLoadError, textAlign: TextAlign.center, style: AppTypography.body(AppColors.textSecondaryOf(context))),
+                                          const SizedBox(height: 6),
+                                          Text('Tap to retry', style: AppTypography.bodyStrong(AppColors.accentTintPairOf(context).$2)),
+                                        ],
+                                      ),
+                                    )
+                                  : Text(
+                                      appState.hasActiveFilters ? 'No plants match these filters.' : 'No plants yet — tap Scan to add your first one.',
+                                      textAlign: TextAlign.center,
+                                      style: AppTypography.body(AppColors.textSecondaryOf(context)),
+                                    ),
                         ),
                       )
                     : GridView.builder(

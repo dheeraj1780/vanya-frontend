@@ -72,20 +72,31 @@ class ApiClient {
       if (token != null) 'Authorization': 'Bearer $token',
     };
 
-    http.Response response;
-    switch (method) {
-      case 'POST':
-        response = await http.post(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
-        break;
-      case 'PUT':
-        response = await http.put(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
-        break;
-      case 'DELETE':
-        response = await http.delete(uri, headers: headers);
-        break;
-      default:
-        response = await http.get(uri, headers: headers);
+    // 55s, not a "normal" API timeout — the deployed backend is a free-tier
+    // Render service, which spins down after inactivity and can take
+    // 30-60s to cold-start on the very next request. A short/no timeout
+    // either hangs forever on a genuinely dead backend, or (worse, and the
+    // actual bug this fixed) a too-short one aborts the exact request that
+    // was in the middle of waking Render up, so it never gets the chance
+    // to complete — the app just looks permanently empty until someone
+    // force-closes and retries enough times that a request happens to
+    // land on an already-warm instance. This is generous enough to ride
+    // out a real cold start while still failing a genuinely unreachable
+    // backend instead of hanging indefinitely.
+    Future<http.Response> send() {
+      switch (method) {
+        case 'POST':
+          return http.post(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
+        case 'PUT':
+          return http.put(uri, headers: headers, body: body != null ? jsonEncode(body) : null);
+        case 'DELETE':
+          return http.delete(uri, headers: headers);
+        default:
+          return http.get(uri, headers: headers);
+      }
     }
+
+    final response = await send().timeout(const Duration(seconds: 55));
 
     final envelope = jsonDecode(response.body) as Map<String, dynamic>;
 

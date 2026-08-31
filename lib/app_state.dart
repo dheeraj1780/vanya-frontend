@@ -50,6 +50,14 @@ class AppState extends ChangeNotifier {
   // sensible behavior anyway.
   bool hasSeenIntro = false;
   List<Plant> plants = [];
+  // Distinguishes "still loading" from "genuinely has zero plants" — Home
+  // and My Plants used to render the empty-garden prompt in BOTH cases
+  // (plants starts as [] either way), which is what made a slow/cold
+  // backend look identical to "you have no plants" instead of "loading".
+  // See refreshPlants' retry loop for the actual root cause this pairs
+  // with (a free-tier Render backend cold-starting).
+  bool hasLoadedPlantsOnce = false;
+  String plantsLoadError = '';
   // Plants identified but not yet given a garden slot — a separate list
   // from `plants` (which is always status=active), loaded lazily (only
   // when the Wishlist tab of MyPlantsScreen is actually opened) since most
@@ -116,6 +124,10 @@ class AppState extends ChangeNotifier {
   // diagnose, calculators) correctly assumes is an active garden plant —
   // kept as its own field rather than broadening selectedPlant's search to
   // both lists, which would be a real behavior change for those screens.
+  // Also doubles as "which wishlist plant is open" for
+  // WishlistPlantDetailScreen — same "which non-active plant am I
+  // looking at" question Growth Journey already answers with this field,
+  // no reason for a second near-identical id.
   String? growthJourneyPlantId;
 
   // Which tab MyPlantsScreen should show — used to used to live purely as
@@ -245,21 +257,46 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// BUG this fixed (reported: "sometimes I open the app and can't see
+  /// any data, have to close and reopen multiple times"): a cold-started
+  /// backend request would eventually succeed on its own (see ApiClient's
+  /// 55s timeout doc), but with no loading indicator anywhere, Home/My
+  /// Plants just looked permanently empty for however long that took —
+  /// so users force-closed before it ever got the chance to finish, then
+  /// tried again, and again, until an attempt happened to land on an
+  /// already-warm backend. The retry loop below rides out one slow/failed
+  /// attempt within a single app open instead of requiring the user to
+  /// manually reopen the app to get that same retry; hasLoadedPlantsOnce/
+  /// plantsLoadError let Home distinguish "still loading" from "genuinely
+  /// empty" from "failed — here's a retry button" instead of showing the
+  /// same empty-garden prompt for all three.
   Future<void> refreshPlants() async {
     if (token == null) return;
-    try {
-      plants = await api.listPlants(
-        token!,
-        isIndoor: filterIsIndoor,
-        isPetSafe: filterIsPetSafe,
-        isAirPurifying: filterIsAirPurifying,
-        careDifficulty: filterCareDifficulty,
-        lightNeeds: filterLightNeeds,
-      );
-      notifyListeners();
-      unawaited(WidgetService.updateFromPlants(plants));
-    } catch (e) {
-      debugPrint('Failed to refresh plants: $e');
+    const maxAttempts = 3;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        plants = await api.listPlants(
+          token!,
+          isIndoor: filterIsIndoor,
+          isPetSafe: filterIsPetSafe,
+          isAirPurifying: filterIsAirPurifying,
+          careDifficulty: filterCareDifficulty,
+          lightNeeds: filterLightNeeds,
+        );
+        hasLoadedPlantsOnce = true;
+        plantsLoadError = '';
+        notifyListeners();
+        unawaited(WidgetService.updateFromPlants(plants));
+        return;
+      } catch (e) {
+        debugPrint('Failed to refresh plants (attempt $attempt/$maxAttempts): $e');
+        if (attempt == maxAttempts) {
+          plantsLoadError = "Couldn't load your plants. Check your connection and try again.";
+          notifyListeners();
+        } else {
+          await Future.delayed(Duration(seconds: attempt * 2));
+        }
+      }
     }
   }
 
@@ -641,6 +678,10 @@ class AppState extends ChangeNotifier {
     final moved = await api.moveToGarden(token!, plantId);
     wishlist = wishlist.where((p) => p.id != plantId).toList();
     plants = [moved, ...plants];
+    // Mirrors handleWishlistItemSaved's own fix: the plant now lives in
+    // the garden, so that's the tab My Plants should show if/when
+    // navigation lands back there — not the Wishlist tab it just left.
+    myPlantsShowWishlist = false;
     if (remindersEnabled) unawaited(NotificationService.instance.scheduleForPlant(moved));
     unawaited(refreshEntitlement());
     notifyListeners();

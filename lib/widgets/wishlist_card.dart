@@ -5,13 +5,15 @@ import 'plant_image.dart';
 
 /// A plant identified but not yet given a garden slot — lighter than
 /// PlantCard (no watering status, since a wishlist plant isn't being
-/// actively cared for yet) and carries its own two actions instead of
-/// navigating to PlantDetailScreen (which assumes an active, watered plant).
+/// actively cared for yet). Tapping the card opens WishlistPlantDetailScreen
+/// (species info, Growth Journey, Add to Garden all live there now — this
+/// card used to also carry a bare Growth Journey icon of its own, cut per
+/// the redesign: one obvious way in, not two competing ones).
 class WishlistCard extends StatelessWidget {
   final Plant plant;
   final VoidCallback onMoveToGarden;
   final VoidCallback onRemove;
-  final VoidCallback onOpenGrowthJourney;
+  final VoidCallback onTap;
   final bool moving;
 
   const WishlistCard({
@@ -19,9 +21,27 @@ class WishlistCard extends StatelessWidget {
     required this.plant,
     required this.onMoveToGarden,
     required this.onRemove,
-    required this.onOpenGrowthJourney,
+    required this.onTap,
     this.moving = false,
   });
+
+  Future<void> _confirmRemove(BuildContext context) async {
+    final confirmed = await showAnimatedDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Remove ${plant.nickname}?'),
+        content: const Text("This takes it off your wishlist. You can always scan it again later."),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) onRemove();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,29 +55,20 @@ class WishlistCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // E-MP004: the big photo used to be inert — only the small eco
-          // icon below opened anything. A wishlist plant has no full detail
-          // screen (see class docstring), so the photo taps through to the
-          // same place that icon does: its Growth Journey.
           Expanded(
             child: Stack(
               children: [
                 Positioned.fill(
                   child: GestureDetector(
-                    onTap: moving ? null : onOpenGrowthJourney,
+                    onTap: moving ? null : onTap,
                     child: PlantImage(url: plant.photoUrl, borderRadius: 0),
                   ),
                 ),
-                // Remove moved here, off the photo's own tap target and
-                // physically apart from "Move to garden"/Growth Journey
-                // below — those three actions used to all sit in one
-                // cramped 4px-gap row, easy to mis-tap ("remove" right next
-                // to the two actions someone actually meant to hit).
                 Positioned(
                   top: 6,
                   right: 6,
                   child: GestureDetector(
-                    onTap: moving ? null : onRemove,
+                    onTap: moving ? null : () => _confirmRemove(context),
                     child: Container(
                       width: 26,
                       height: 26,
@@ -84,44 +95,22 @@ class WishlistCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Builder(builder: (context) {
-                        final (tint, tintFg) = AppColors.primaryTintPairOf(context);
-                        return GestureDetector(
-                          onTap: moving ? null : onMoveToGarden,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 7),
-                            decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadius.pill)),
-                            child: Center(
-                              child: moving
-                                  ? SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: tintFg))
-                                  : Text('Move to garden', style: AppTypography.caption(tintFg), textAlign: TextAlign.center),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    // Clear gap (not the old 4px) and its own bordered,
-                    // larger tap target — reads as a deliberate second
-                    // action next to "Move to garden", not an accidental
-                    // extra icon crowding it.
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: moving ? null : onOpenGrowthJourney,
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.sageTintPairOf(context).$1,
-                        ),
-                        child: Icon(Icons.eco_outlined, size: 15, color: AppColors.sage),
+                Builder(builder: (context) {
+                  final (tint, tintFg) = AppColors.primaryTintPairOf(context);
+                  return GestureDetector(
+                    onTap: moving ? null : onMoveToGarden,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                      child: Center(
+                        child: moving
+                            ? SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: tintFg))
+                            : Text('Move to garden', style: AppTypography.caption(tintFg), textAlign: TextAlign.center),
                       ),
                     ),
-                  ],
-                ),
+                  );
+                }),
               ],
             ),
           ),
@@ -129,4 +118,30 @@ class WishlistCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Scale-up + fade-in dialog, in from a resting 0.9x rather than Flutter's
+/// default (a flat fade with no scale) — used for the wishlist remove
+/// confirmation. Shares the exact curve/duration GrowthJourneyScreen's own
+/// memory-detail dialog already established, kept here as a small reusable
+/// helper rather than copy-pasted a third time.
+Future<T?> showAnimatedDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) {
+  return showGeneralDialog<T>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Dismiss',
+    barrierColor: Colors.black.withValues(alpha: 0.45),
+    transitionDuration: const Duration(milliseconds: 220),
+    pageBuilder: (context, animation, secondaryAnimation) => Builder(builder: builder),
+    transitionBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(scale: Tween(begin: 0.9, end: 1.0).animate(curved), child: child),
+      );
+    },
+  );
 }

@@ -3,9 +3,11 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api/client.dart';
 import '../app_state.dart';
 import '../config/feature_flags.dart';
+import '../config/web.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/plan_badge.dart';
@@ -386,6 +388,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const Divider(height: 1),
                   _Row(label: 'Camera access', onTap: () => appState.goTo('camera')),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Play Store's Data Safety section and store listing both
+          // require a reachable Privacy Policy — this is the one place in
+          // the app itself that links to it (also linked from every page
+          // of vanya-web's own footer).
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.borderOf(context)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Material(
+              color: AppColors.surfaceOf(context),
+              child: ListTile(
+                onTap: () => launchUrl(Uri.parse('$kVanyaWebUrl/privacy'), mode: LaunchMode.externalApplication),
+                title: Text('Privacy Policy', style: AppTypography.bodyStrong(AppColors.textOf(context))),
+                trailing: Icon(Icons.open_in_new, size: 15, color: AppColors.textSecondaryOf(context)),
               ),
             ),
           ),

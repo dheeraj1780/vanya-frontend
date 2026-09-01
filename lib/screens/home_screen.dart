@@ -90,7 +90,13 @@ class HomeScreen extends StatelessWidget {
         // the avatar now anchors the whole block at a consistent height
         // instead of floating separately at the top-right.
         Container(
-          padding: const EdgeInsets.all(16),
+          // Was 16 all round with a 14dp gap to the text column and a 5dp
+          // gap between the greeting and status line — reasonable numbers
+          // individually, but stacked together (avatar, badge, 2-line
+          // greeting, subtitle, all inside one card) it read as cramped.
+          // Opened up every gap in this block rather than just one, since
+          // the crowding was cumulative, not any single spot.
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: AppColors.surfaceOf(context),
             borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -127,12 +133,12 @@ class HomeScreen extends StatelessWidget {
                         child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 21),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
                   ],
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 18),
               // Expanded, not Flexible — nothing else on this row needs to
               // shrink to content width now, so it can just claim the rest
               // of the card.
@@ -164,7 +170,7 @@ class HomeScreen extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 8),
                     Text(
                       duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} need water today',
                       style: AppTypography.body(AppColors.textSecondaryOf(context)),

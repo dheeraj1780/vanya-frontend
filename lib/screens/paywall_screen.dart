@@ -73,6 +73,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
       query = '?auth_token=${Uri.encodeComponent(handoffToken)}';
     } catch (e) {
       debugPrint('Could not create web handoff token (opening without it): $e');
+      // Best-effort fallback: still can't sign the website in directly,
+      // but passing the email as a login_hint at least pre-selects/
+      // suggests the right Google account in its sign-in picker instead
+      // of a blank one — the same wrong-account risk the handoff token
+      // exists for, just a weaker mitigation for when that token can't
+      // be minted at all (see AppState.userEmail's docstring).
+      if (appState.userEmail != null && appState.userEmail!.isNotEmpty) {
+        query = '?login_hint=${Uri.encodeComponent(appState.userEmail!)}';
+      }
     }
     // externalApplication, never an in-app WebView — the purchase must
     // happen fully outside this app (see class docstring).

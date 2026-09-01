@@ -377,6 +377,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                     onTap: _savingName ? () {} : _editName,
                   ),
+                  // Read-only, unlike Name — this comes straight from
+                  // whichever Google/Apple identity is signed in (see
+                  // AppState.userEmail), nothing to edit here. Shown
+                  // mainly so the account someone's actually signed into
+                  // is never a mystery — the same account mix-up risk
+                  // that's also why this email gets passed to the website
+                  // as a login_hint when the paywall's handoff-token
+                  // mint fails (see PaywallScreen._openWebsite).
+                  if (appState.userEmail != null && appState.userEmail!.isNotEmpty) ...[
+                    const Divider(height: 1),
+                    // Plain ListTile, not _Row — _Row always draws a
+                    // trailing chevron implying it's tappable/navigable,
+                    // which would be misleading here (nothing to edit).
+                    ListTile(
+                      title: Text('Email', style: AppTypography.bodyStrong(AppColors.textOf(context))),
+                      trailing: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 180),
+                        child: Text(
+                          appState.userEmail!,
+                          style: TextStyle(color: AppColors.textSecondaryOf(context)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ),
+                  ],
                   const Divider(height: 1),
                   _Row(
                     label: 'Plan',

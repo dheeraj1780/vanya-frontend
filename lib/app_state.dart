@@ -72,6 +72,19 @@ class AppState extends ChangeNotifier {
   // every screen that shows it needs to handle that gracefully.
   String? userName;
 
+  // The signed-in email — read straight from Firebase's own currentUser
+  // (see loadReminderPreference), not round-tripped through our backend,
+  // since Firebase already has it locally the instant a session exists.
+  // null for a guest (no identity at all) or before the first
+  // loadReminderPreference() call completes. Shown read-only in Settings
+  // (unlike userName, there's no "edit" concept — it comes from whichever
+  // Google/Apple identity is signed in) and passed as a login_hint when
+  // opening the website's Checkout if the handoff-token mint fails (see
+  // PaywallScreen._openWebsite) — the same "avoid the wrong Google
+  // account being picked" problem the handoff token exists for, just a
+  // best-effort fallback for when that token can't be minted at all.
+  String? userEmail;
+
   // Smart Filters — applied server-side via GET /plants query params
   // (see api/client.dart's listPlants). Null means "no filter on this field".
   bool? filterIsIndoor;
@@ -329,6 +342,7 @@ class AppState extends ChangeNotifier {
       final data = await api.getPreferences(token!);
       remindersEnabled = data['reminders_enabled'];
       userName = data['name'];
+      userEmail = fb.FirebaseAuth.instance.currentUser?.email;
       notifyListeners();
       if (remindersEnabled) {
         await NotificationService.instance.scheduleAll(plants);
@@ -483,6 +497,7 @@ class AppState extends ChangeNotifier {
     entitlement = null;
     remindersEnabled = false;
     userName = null;
+    userEmail = null;
     try {
       await NotificationService.instance.cancelAll();
     } catch (e) {
@@ -519,6 +534,7 @@ class AppState extends ChangeNotifier {
     entitlement = null;
     remindersEnabled = false;
     userName = null;
+    userEmail = null;
     try {
       await NotificationService.instance.cancelAll();
     } catch (e) {
@@ -602,6 +618,7 @@ class AppState extends ChangeNotifier {
     entitlement = null;
     remindersEnabled = false;
     userName = null;
+    userEmail = null;
     try {
       await NotificationService.instance.cancelAll();
     } catch (e) {

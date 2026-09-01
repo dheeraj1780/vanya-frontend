@@ -172,7 +172,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} need water today',
+                      duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} ${duePlants.length == 1 ? 'needs' : 'need'} water today',
                       style: AppTypography.body(AppColors.textSecondaryOf(context)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

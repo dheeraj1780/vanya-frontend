@@ -376,13 +376,25 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // Same retry-with-backoff as refreshPlants (see its own comment) — this
+  // used to be a single unretried attempt, so if it landed exactly during a
+  // Render cold start it just silently gave up and left `entitlement` at
+  // whatever it was before (stale plan info, paywall gating using it) with
+  // nothing anywhere ever retrying it.
   Future<void> refreshEntitlement() async {
     if (token == null) return;
-    try {
-      entitlement = await api.getEntitlement(token!);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to refresh entitlement: $e');
+    const maxAttempts = 3;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        entitlement = await api.getEntitlement(token!);
+        notifyListeners();
+        return;
+      } catch (e) {
+        debugPrint('Failed to refresh entitlement (attempt $attempt/$maxAttempts): $e');
+        if (attempt < maxAttempts) {
+          await Future.delayed(Duration(seconds: attempt * 2));
+        }
+      }
     }
   }
 

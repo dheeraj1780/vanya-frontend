@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
@@ -37,11 +39,15 @@ class HomeScreen extends StatelessWidget {
   /// Shared by both the plain-list and scroll-box layouts below (E-H003) so
   /// the tile itself — and its "Done" action — is defined in exactly one place.
   Widget _careTaskTileFor(BuildContext context, AppState appState, Plant plant) {
+    final hoursUntil = plant.nextWateringDue.difference(DateTime.now()).inHours;
     return CareTaskTile(
       icon: Icons.water_drop_outlined,
       title: 'Water ${plant.nickname}',
-      subtitle: plant.nextWateringDue.difference(DateTime.now()).inDays < -1
-          ? 'Overdue by ${(-plant.nextWateringDue.difference(DateTime.now()).inHours / 24).ceil()} days'
+      // hoursUntil <= 0 covers "overdue by less than a day" too (previously
+      // only `inDays < -1` counted as overdue, so a plant a few hours past
+      // due wrongly still read "Due today" instead of "Overdue").
+      subtitle: hoursUntil <= 0
+          ? (hoursUntil <= -24 ? 'Overdue by ${(-hoursUntil / 24).ceil()} days' : 'Overdue')
           : 'Due today',
       urgent: true,
       onTap: () {
@@ -61,7 +67,14 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final duePlants = appState.plants.where((p) => p.nextWateringDue.difference(DateTime.now()).inHours <= 0).toList()
+    // BUG FIX: this used to only be `inHours <= 0` (already overdue), while
+    // PlantCard's own "Water today" badge and RemindersScreen's "Due today"
+    // label both use `< 24 hours away` (days < 1) — so a plant due later
+    // TODAY (say, 6pm, checked at 10am) showed "Water today" right on its
+    // own card but never appeared in this "needs water today" list at all.
+    // Matched to the same < 24h threshold everywhere so a plant that says
+    // "due today" anywhere in the app always shows up here too.
+    final duePlants = appState.plants.where((p) => p.nextWateringDue.difference(DateTime.now()).inHours < 24).toList()
       ..sort((a, b) => a.nextWateringDue.compareTo(b.nextWateringDue));
     final previewPlants = appState.plants.take(6).toList();
 
@@ -320,8 +333,37 @@ class _QuickAction extends StatelessWidget {
 /// _EmptyPlantsPrompt so nothing jumps around once real data or the empty
 /// state replaces it, but visually distinct (spinner, no "tap to scan"
 /// call to action) so it doesn't read as "you have no plants".
-class _PlantsLoadingPrompt extends StatelessWidget {
+///
+/// Stateful only for a 4s delayed label swap: our backend is a free-tier
+/// Render service that spins down after inactivity, so the very first
+/// request after a while can genuinely take 20-60s to wake it back up.
+/// Silently spinning for that whole stretch reads as broken/stuck — a
+/// plain explanation after a few seconds turns an unexplained long wait
+/// into an expected one.
+class _PlantsLoadingPrompt extends StatefulWidget {
   const _PlantsLoadingPrompt();
+
+  @override
+  State<_PlantsLoadingPrompt> createState() => _PlantsLoadingPromptState();
+}
+
+class _PlantsLoadingPromptState extends State<_PlantsLoadingPrompt> {
+  bool _slow = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _slow = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +379,18 @@ class _PlantsLoadingPrompt extends StatelessWidget {
         children: [
           const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary)),
           const SizedBox(height: 12),
-          Text('Loading your garden…', style: AppTypography.body(AppColors.textSecondaryOf(context))),
+          Text(
+            _slow ? 'Waking up the server…' : 'Loading your garden…',
+            style: AppTypography.body(AppColors.textSecondaryOf(context)),
+          ),
+          if (_slow) ...[
+            const SizedBox(height: 4),
+            Text(
+              'This can take up to a minute after the app has been idle a while.',
+              textAlign: TextAlign.center,
+              style: AppTypography.caption(AppColors.textSecondaryOf(context)),
+            ),
+          ],
         ],
       ),
     );

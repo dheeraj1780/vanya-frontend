@@ -171,6 +171,22 @@ class AppState extends ChangeNotifier {
     isGuest = _prefs.getBool(_isGuestKey) ?? false;
     hasSeenIntro = _prefs.getBool(_hasSeenIntroKey) ?? false;
 
+    // BUG: userEmail was only ever set by a single synchronous read of
+    // fb.FirebaseAuth.instance.currentUser?.email inside
+    // loadReminderPreference() — on a cold start, Firebase Auth restores
+    // its persisted session ASYNCHRONOUSLY, so that read could easily run
+    // before restoration finished and see null even though the user was
+    // genuinely signed in, permanently leaving Settings' Email row hidden
+    // for that whole app session (nothing else ever re-checked it).
+    // authStateChanges() emits the current state as soon as it's actually
+    // known (immediately if already restored, or the moment restoration
+    // completes if not) and keeps emitting on every future sign-in/out/
+    // link, so this can't miss it the way a one-off read could.
+    fb.FirebaseAuth.instance.authStateChanges().listen((user) {
+      userEmail = user?.email;
+      notifyListeners();
+    });
+
     if (token != null) {
       screen = 'home';
       // Fire-and-forget, same tolerance as the React version — a failed
@@ -342,7 +358,9 @@ class AppState extends ChangeNotifier {
       final data = await api.getPreferences(token!);
       remindersEnabled = data['reminders_enabled'];
       userName = data['name'];
-      userEmail = fb.FirebaseAuth.instance.currentUser?.email;
+      // userEmail is no longer set here -- bootstrap()'s authStateChanges
+      // listener owns it now (see that comment for why the one-off read
+      // this used to do was unreliable on a cold start).
       notifyListeners();
       if (remindersEnabled) {
         await NotificationService.instance.scheduleAll(plants);

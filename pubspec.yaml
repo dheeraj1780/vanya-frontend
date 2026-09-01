@@ -87,9 +87,10 @@ flutter_launcher_icons:
   image_path: "assets/icon/icon.png"
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF"
-  # A separate, more-inset version (artwork at ~62% of the frame, not the
-  # ~85% the plain icon.png uses) -- adaptive icons get masked into a
-  # circle/squircle/rounded-square depending on the launcher, and the
-  # plain image filled close enough to the edges that a circular mask
-  # would clip the leaf tips and the roofline's corners.
-  adaptive_icon_foreground: "assets/icon/icon_adaptive.png"
+  # Was a separately-shrunk foreground (artwork at ~62% of frame) on top
+  # of the tool's own default inset -- stacking both made the launcher
+  # icon read as noticeably small. The tool's automatic inset alone is
+  # enough margin for the mask shapes without needing this file's own
+  # extra shrink on top of it, so this now just points at the same full
+  # ~85%-filling artwork the plain icon uses.
+  adaptive_icon_foreground: "assets/icon/icon.png"

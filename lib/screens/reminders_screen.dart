@@ -90,7 +90,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
     return _loading
         ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
         : ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+            // Same fix as HomeScreen — 110 was less than the floating
+            // nav's own real height (116), so the last item never fully
+            // cleared it even at full scroll.
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 140),
             children: [
               Text('Reminders', style: AppTypography.h1(AppColors.textOf(context))),
               const SizedBox(height: 18),

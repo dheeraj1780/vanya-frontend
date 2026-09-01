@@ -79,7 +79,12 @@ class HomeScreen extends StatelessWidget {
     final previewPlants = appState.plants.take(6).toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 110), // extra bottom padding clears the floating nav
+      // Was 110 — CustomBottomNav's actual reserved height is 68 (pill) +
+      // 34 (raised Scan circle) + 14 (its own bottom padding) = 116, so
+      // even fully scrolled to the end this never actually cleared it;
+      // the last row of Quick Actions sat permanently behind the nav.
+      // 140 gives real clearance past that 116, not just barely matching it.
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 140),
       children: [
         // A bounded card, not a bare Row loose in the page's padding — this
         // is the very top of the app, and stacking the greeting, plan

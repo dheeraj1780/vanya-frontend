@@ -151,7 +151,11 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                         ),
                       )
                     : GridView.builder(
-                        padding: const EdgeInsets.only(bottom: 100),
+                        // Was 100 — same underlying bug as Home/Reminders:
+                        // CustomBottomNav's real reserved height is 116
+                        // (68 pill + 34 raised Scan circle + 14 its own
+                        // padding), so this never actually cleared it.
+                        padding: const EdgeInsets.only(bottom: 140),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           mainAxisSpacing: 14,
@@ -213,7 +217,11 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                         ),
                       )
                     : GridView.builder(
-                        padding: const EdgeInsets.only(bottom: 100),
+                        // Was 100 — same underlying bug as Home/Reminders:
+                        // CustomBottomNav's real reserved height is 116
+                        // (68 pill + 34 raised Scan circle + 14 its own
+                        // padding), so this never actually cleared it.
+                        padding: const EdgeInsets.only(bottom: 140),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           mainAxisSpacing: 14,

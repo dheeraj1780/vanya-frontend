@@ -25,22 +25,25 @@ class CareTaskTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final (tint, color) = urgent ? AppColors.accentTintPairOf(context) : AppColors.primaryTintPairOf(context);
 
+    // Flat tinted surface, not a white-with-border box on the cream page
+    // background — a bordered white card here was one more hard edge
+    // competing with the header/Quick Actions boxes for attention. This
+    // reads lighter, and for an overdue/urgent tile the whole row now
+    // carries the warm accent tint instead of just a small icon circle,
+    // which actually reads as more urgent, not less, despite being less
+    // "boxy" overall.
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.borderOf(context)),
-        ),
+        decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadius.md)),
         child: Row(
           children: [
             Container(
               width: 38,
               height: 38,
-              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: AppColors.surfaceOf(context), shape: BoxShape.circle),
               child: Icon(icon, size: 17, color: color),
             ),
             const SizedBox(width: 12),

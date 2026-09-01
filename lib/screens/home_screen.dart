@@ -36,6 +36,19 @@ class HomeScreen extends StatelessWidget {
     return (name == null || name.isEmpty) ? base : '$base, $name';
   }
 
+  static const _weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  static const _months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  /// Replaces the old "X plant(s) need water today" line under the
+  /// greeting — that duplicated the Today's care section immediately
+  /// below it word-for-word. The date is real, non-redundant context
+  /// instead, the same "quiet second line under a greeting" pattern most
+  /// habit/health apps use.
+  String _today() {
+    final now = DateTime.now();
+    return '${_weekdays[now.weekday - 1]}, ${now.day} ${_months[now.month - 1]}';
+  }
+
   /// Shared by both the plain-list and scroll-box layouts below (E-H003) so
   /// the tile itself — and its "Done" action — is defined in exactly one place.
   Widget _careTaskTileFor(BuildContext context, AppState appState, Plant plant) {
@@ -86,109 +99,73 @@ class HomeScreen extends StatelessWidget {
       // 140 gives real clearance past that 116, not just barely matching it.
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 140),
       children: [
-        // A bounded card, not a bare Row loose in the page's padding — this
-        // is the very top of the app, and stacking the greeting, plan
-        // badge, status line, and a small round profile icon all directly
-        // on the page background (previous layout) gave it no visual edge
-        // to read as "the top section" versus everything scrolling below
-        // it. A soft surface + border + shadow gives it that boundary, and
-        // the avatar now anchors the whole block at a consistent height
-        // instead of floating separately at the top-right.
-        Container(
-          // Was 16 all round with a 14dp gap to the text column and a 5dp
-          // gap between the greeting and status line — reasonable numbers
-          // individually, but stacked together (avatar, badge, 2-line
-          // greeting, subtitle, all inside one card) it read as cramped.
-          // Opened up every gap in this block rather than just one, since
-          // the crowding was cumulative, not any single spot.
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceOf(context),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.borderOf(context)),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 6))],
-          ),
-          child: Row(
-            // start, not center: once the greeting can wrap to 2 lines
-            // (below), center-aligning made the avatar drift toward the
-            // vertical middle of the whole taller block instead of sitting
-            // level with the first line of text, like a name tag reads.
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Avatar + plan badge stacked in their own left column, not
-              // the avatar alone — with the greeting now up to 2 lines
-              // tall, a lone 46px avatar left a noticeably empty gap below
-              // it next to the taller text block. Anchoring the badge here
-              // fills that gap instead of leaving it bare.
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: () => appState.goTo('settings'),
-                      child: Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryTintPairOf(context).$1,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.primaryTintPairOf(context).$2.withValues(alpha: 0.3), width: 1.5),
+        // Redesigned for a minimal, editorial feel — the previous version
+        // boxed the greeting in a bordered/shadowed card, which was the
+        // single biggest thing making the top of the page look heavy: a
+        // card whose only job is to hold a hello reads as one more UI
+        // element competing for attention, not a calm opener. Dropped
+        // entirely — the greeting now sits directly on the page's own
+        // warm background, the same way a masthead or a letter's
+        // salutation would, and lets Today's care right below it be the
+        // first actual "card" the eye lands on.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Small and quiet on purpose — no border ring, no drop shadow.
+            // Its job now is just "tap to reach Settings", not to anchor a
+            // whole card's visual weight the way it did before.
+            GestureDetector(
+              onTap: () => appState.goTo('settings'),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: AppColors.primaryTintPairOf(context).$1, shape: BoxShape.circle),
+                child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 19),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // maxLines: 2, not 1 — a 1-line cap on a serif h1 is what
+                  // forced "Good morning, Chandrasekaran" down to "Good
+                  // morning, Chan..." for any real name longer than ~14
+                  // characters. _editName's 40-char cap (settings_screen.
+                  // dart) still degrades to the ellipsis below for the rare
+                  // maxed-out name on a narrow phone — sized for the common
+                  // case, not a hard guarantee, same as before.
+                  Text(
+                    _greeting(appState.userName),
+                    style: AppTypography.h1(AppColors.textOf(context)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  // Plan badge + today's date, both quiet secondary-line
+                  // info — replaces the old "X plant(s) need water today"
+                  // line, which just repeated the Today's care section
+                  // word-for-word one glance below it.
+                  Row(
+                    children: [
+                      PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _today(),
+                          style: AppTypography.body(AppColors.textSecondaryOf(context)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 21),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: 18),
-              // Expanded, not Flexible — nothing else on this row needs to
-              // shrink to content width now, so it can just claim the rest
-              // of the card.
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // maxLines: 2, not 1 — a 1-line cap on a serif h2 is
-                    // what forced "Good morning, Chandrasekaran" down to
-                    // "Good morning, Chan..." for any real name longer than
-                    // ~10-11 characters. At h2's 19px Fraunces (~10dp/char
-                    // for this bold serif), this card's text column is
-                    // roughly 340dp - (avatar/badge column width, ~60dp for
-                    // the Guest/Plantie/Green Thumb badges, up to ~150dp
-                    // for the longer "Photosynthesis PhD" one) - 14dp gap
-                    // wide — call it ~34 characters/line, ~68 total, in the
-                    // common (short-badge) case. _editName's 40-char cap
-                    // (settings_screen.dart) is sized against that: minus
-                    // the longest prefix "Good afternoon, " (17 chars),
-                    // that's comfortable room for real names to always show
-                    // in full. The rare edge case (a maxed-out 40-char name
-                    // AND the widest Photosynthesis PhD badge AND a narrow
-                    // phone) still degrades gracefully to the ellipsis
-                    // below rather than breaking the layout — this is
-                    // sized for the common case, not a hard guarantee.
-                    Text(
-                      _greeting(appState.userName),
-                      style: AppTypography.h2(AppColors.textOf(context)),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      duePlants.isEmpty ? 'Your plants are all set today.' : '${duePlants.length} plant${duePlants.length == 1 ? '' : 's'} ${duePlants.length == 1 ? 'needs' : 'need'} water today',
-                      style: AppTypography.body(AppColors.textSecondaryOf(context)),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 28),
 
         SectionHeader(title: "Today's care"),
         const SizedBox(height: 12),
@@ -310,6 +287,11 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+/// Was a horizontal icon+label bar in a bordered white box, matching the
+/// header/care-tile treatment being replaced elsewhere on this screen —
+/// vertical (icon over label) on a flat sage-tinted surface instead reads
+/// as a quiet app-tile rather than a form row, and drops one more hard
+/// border from the page.
 class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -318,20 +300,17 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final (tint, color) = AppColors.sageTintPairOf(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceOf(context),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.borderOf(context)),
-        ),
-        child: Row(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
+        decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadius.md)),
+        child: Column(
           children: [
-            Icon(icon, color: AppColors.primary, size: 19),
-            const SizedBox(width: 10),
-            Expanded(child: Text(label, style: AppTypography.bodyStrong(AppColors.textOf(context)))),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 8),
+            Text(label, style: AppTypography.bodyStrong(AppColors.textOf(context))),
           ],
         ),
       ),

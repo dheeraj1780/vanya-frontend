@@ -298,9 +298,12 @@ class _PlanCard extends StatelessWidget {
             const SizedBox(height: 12),
             _Feature(text: '${plan.maxPlants} plants in your garden'),
             _Feature(text: '${plan.wishlistLimit} wishlist slots — save plants you like without a garden slot'),
-            _Feature(text: plan.identification.humanReadable('identification', 'identifications')),
-            _Feature(text: plan.careCalculator.humanReadable('Care Calculator use', 'Care Calculator uses')),
-            _Feature(text: plan.diagnose.humanReadable('diagnosis', 'diagnoses')),
+            // One line instead of three separate ones — identify, Care
+            // Calculator, and diagnose all draw from the same shared
+            // weekly pool now (see plans.dart's aiActions note), spend it
+            // however you want instead of being capped in each dimension
+            // separately.
+            _Feature(text: '${plan.aiActions.humanReadable('AI action', 'AI actions')} — identify, diagnose, or run the Care Calculator'),
             if (plan.gardenSetupIdentifications > 0)
               _Feature(text: '${plan.gardenSetupIdentifications} bonus identifications to set up your garden'),
             if (plan.growthMemoryLimit != 0)

@@ -90,13 +90,14 @@ class _PlanScreenState extends State<PlanScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                Text('THIS WEEK & MONTH', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryOf(context), letterSpacing: 0.4)),
+                // One row instead of three — identify, Care Calculator,
+                // and diagnose all draw from the same shared pool now
+                // (see models.dart's FeatureUsage/Entitlement.aiActions
+                // note), so there's one number to show, not three on
+                // different clocks.
+                Text('AI ACTIONS', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryOf(context), letterSpacing: 0.4)),
                 const SizedBox(height: 8),
-                _UsageRow(label: 'Plant identification', usage: ent.identification, icon: Icons.center_focus_strong_outlined),
-                const SizedBox(height: 8),
-                _UsageRow(label: 'Care Calculator', usage: ent.careCalculator, icon: Icons.calculate_outlined),
-                const SizedBox(height: 8),
-                _UsageRow(label: 'Diagnose', usage: ent.diagnose, icon: Icons.healing_outlined),
+                _UsageRow(label: 'Identify, diagnose & Care Calculator', usage: ent.aiActions, icon: Icons.auto_awesome_outlined),
                 const SizedBox(height: 8),
                 _PlantSlotRow(plantCount: ent.plantCount, plantLimit: ent.plantLimit),
                 const SizedBox(height: 8),

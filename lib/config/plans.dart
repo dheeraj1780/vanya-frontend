@@ -13,6 +13,13 @@
 /// always the source of truth for what's actually allowed.
 library;
 
+// Mirrors plans.py's DIAGNOSE_ACTION_COST — diagnose draws 2 from the
+// shared aiActions pool per call (it sends two photos, roughly double a
+// single-photo identify/calculator call); identify and calculator each
+// draw 1. Display/proactive-UX use only, same as the rest of this file —
+// the real cost is enforced server-side.
+const int kDiagnoseActionCost = 2;
+
 class FeatureAllowance {
   final int limit; // -1 = unlimited
   final String period; // "lifetime" | "weekly" | "monthly"
@@ -41,9 +48,10 @@ class PlanConfig {
   final int maxPlants;
   final int wishlistLimit;
   final int gardenSetupIdentifications;
-  final FeatureAllowance identification;
-  final FeatureAllowance careCalculator;
-  final FeatureAllowance diagnose;
+  // Identify + Care Calculator + diagnose, unified into one shared pool —
+  // see plans.py's AI ACTIONS note for why this used to be three
+  // separate allowances on three different clocks.
+  final FeatureAllowance aiActions;
   // Growth Journey — persistent slots for dated photo memories, same
   // PLANT COLLECTION RULES semantics as maxPlants (see plans.py's GROWTH
   // JOURNEY note). 0 = not offered on this tier; -1 = unlimited.
@@ -60,9 +68,7 @@ class PlanConfig {
     required this.maxPlants,
     required this.wishlistLimit,
     required this.gardenSetupIdentifications,
-    required this.identification,
-    required this.careCalculator,
-    required this.diagnose,
+    required this.aiActions,
     required this.growthMemoryLimit,
     this.productId,
   });
@@ -81,9 +87,7 @@ const Map<String, PlanConfig> kPlans = {
     maxPlants: 3,
     wishlistLimit: 3,
     gardenSetupIdentifications: 0,
-    identification: FeatureAllowance(3, 'lifetime'),
-    careCalculator: FeatureAllowance(3, 'lifetime'),
-    diagnose: FeatureAllowance(1, 'lifetime'),
+    aiActions: FeatureAllowance(6, 'lifetime'),
     growthMemoryLimit: 0,
   ),
   'plantie': PlanConfig(
@@ -96,9 +100,7 @@ const Map<String, PlanConfig> kPlans = {
     maxPlants: 5,
     wishlistLimit: 5,
     gardenSetupIdentifications: 0,
-    identification: FeatureAllowance(3, 'weekly'),
-    careCalculator: FeatureAllowance(3, 'weekly'),
-    diagnose: FeatureAllowance(1, 'monthly'),
+    aiActions: FeatureAllowance(6, 'weekly'),
     growthMemoryLimit: 0,
   ),
   'green_thumb': PlanConfig(
@@ -111,10 +113,8 @@ const Map<String, PlanConfig> kPlans = {
     maxPlants: 10,
     wishlistLimit: 20,
     gardenSetupIdentifications: 10,
-    identification: FeatureAllowance(7, 'weekly'),
-    careCalculator: FeatureAllowance(7, 'weekly'),
-    diagnose: FeatureAllowance(2, 'monthly'),
-    growthMemoryLimit: 1,
+    aiActions: FeatureAllowance(15, 'weekly'),
+    growthMemoryLimit: 4,
     productId: 'vanya_green_thumb_monthly',
   ),
   'photosynthesis_phd': PlanConfig(
@@ -127,9 +127,7 @@ const Map<String, PlanConfig> kPlans = {
     maxPlants: 25,
     wishlistLimit: 50,
     gardenSetupIdentifications: 25,
-    identification: FeatureAllowance(10, 'weekly'),
-    careCalculator: FeatureAllowance(20, 'weekly'),
-    diagnose: FeatureAllowance(5, 'monthly'),
+    aiActions: FeatureAllowance(35, 'weekly'),
     growthMemoryLimit: -1,
     productId: 'vanya_photosynthesis_phd_monthly',
   ),

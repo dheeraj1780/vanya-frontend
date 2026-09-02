@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../api/client.dart';
+import '../config/plans.dart';
 import '../theme/app_theme.dart';
 import '../widgets/image_source_sheet.dart';
 import '../widgets/primary_button.dart';
@@ -23,11 +24,14 @@ class _DiagnoseScreenState extends State<DiagnoseScreen> {
   Future<void> _handleCapture() async {
     final appState = context.read<AppState>();
     // Tier-aware proactive check (real enforcement is always server-side,
-    // via check_diagnose_limit) — falls back to blocking outright if
+    // via check_ai_action_limit) — falls back to blocking outright if
     // entitlement hasn't loaded yet, same conservative default as
-    // AddPlantScreen's plant-limit pre-check.
-    final diagnose = appState.entitlement?.diagnose;
-    if (diagnose == null || diagnose.atLimit) {
+    // AddPlantScreen's plant-limit pre-check. Diagnose costs 2 from the
+    // shared AI-actions pool (not 1, like identify/calculator — see
+    // plans.py's DIAGNOSE_ACTION_COST), so this checks "enough for a
+    // diagnose specifically", not just "any budget left at all".
+    final aiActions = appState.entitlement?.aiActions;
+    if (aiActions == null || !aiActions.hasEnoughFor(kDiagnoseActionCost)) {
       appState.trackEvent('diagnose_limit_reached');
       if (appState.isGuest) {
         appState.guestGateReason = "You've used your free diagnosis as a guest. Sign in to become a Plantie and keep growing your garden.";

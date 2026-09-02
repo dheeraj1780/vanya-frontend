@@ -350,6 +350,12 @@ class LocationWeatherPreview {
 
 /// Mirrors FeatureUsage in schemas/entitlement.py — one feature's usage
 /// against its current tier's allowance.
+/// Usage against the shared "AI actions" allowance — identify, Care
+/// Calculator, and diagnose all draw from this ONE pool now (see the
+/// backend's entitlement_service module docstring and plans.py's AI
+/// ACTIONS note for why three separate allowances on three different
+/// clocks got collapsed into one). `used`/`remaining` are in action
+/// units, not raw call counts — diagnose costs more than 1 per call.
 class FeatureUsage {
   final int used;
   final int limit; // -1 = unlimited
@@ -361,6 +367,9 @@ class FeatureUsage {
 
   bool get isUnlimited => limit < 0;
   bool get atLimit => !isUnlimited && remaining <= 0;
+  // For an action that costs more than 1 (diagnose) — not just "is there
+  // any budget left" but "is there enough for THIS specific action".
+  bool hasEnoughFor(int cost) => isUnlimited || remaining >= cost;
 
   factory FeatureUsage.fromJson(Map<String, dynamic> json) => FeatureUsage(
         used: json['used'],
@@ -421,9 +430,9 @@ class Entitlement {
   final int plantCount;
   final int plantLimit;
   final WishlistUsage wishlist;
-  final FeatureUsage identification;
-  final FeatureUsage careCalculator;
-  final FeatureUsage diagnose;
+  // Identify + Care Calculator + diagnose, unified — see FeatureUsage's
+  // own docstring.
+  final FeatureUsage aiActions;
   final GardenSetup gardenSetup;
   final GrowthMemoryUsage growthMemories;
   final String? nextPlan;
@@ -438,9 +447,7 @@ class Entitlement {
     required this.plantCount,
     required this.plantLimit,
     required this.wishlist,
-    required this.identification,
-    required this.careCalculator,
-    required this.diagnose,
+    required this.aiActions,
     required this.gardenSetup,
     required this.growthMemories,
     this.nextPlan,
@@ -458,9 +465,7 @@ class Entitlement {
         plantCount: json['plant_count'],
         plantLimit: json['plant_limit'],
         wishlist: WishlistUsage.fromJson(json['wishlist']),
-        identification: FeatureUsage.fromJson(json['identification']),
-        careCalculator: FeatureUsage.fromJson(json['care_calculator']),
-        diagnose: FeatureUsage.fromJson(json['diagnose']),
+        aiActions: FeatureUsage.fromJson(json['ai_actions']),
         gardenSetup: GardenSetup.fromJson(json['garden_setup']),
         growthMemories: GrowthMemoryUsage.fromJson(json['growth_memories']),
         nextPlan: json['next_plan'],

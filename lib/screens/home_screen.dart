@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
@@ -315,36 +313,14 @@ class _QuickAction extends StatelessWidget {
 /// state replaces it, but visually distinct (spinner, no "tap to scan"
 /// call to action) so it doesn't read as "you have no plants".
 ///
-/// Stateful only for a 4s delayed label swap: our backend is a free-tier
-/// Render service that spins down after inactivity, so the very first
-/// request after a while can genuinely take 20-60s to wake it back up.
-/// Silently spinning for that whole stretch reads as broken/stuck — a
-/// plain explanation after a few seconds turns an unexplained long wait
-/// into an expected one.
-class _PlantsLoadingPrompt extends StatefulWidget {
+/// Back to a plain StatelessWidget — the delayed "Waking up the server…"
+/// swap was specific to the free-tier Render backend's cold-start
+/// behavior (moving off that before production), so that messaging no
+/// longer applies. AppState.refreshPlants' own timeout/retry logic is
+/// untouched — this is still real defense against an ordinary slow or
+/// flaky connection, just without cold-start-specific copy.
+class _PlantsLoadingPrompt extends StatelessWidget {
   const _PlantsLoadingPrompt();
-
-  @override
-  State<_PlantsLoadingPrompt> createState() => _PlantsLoadingPromptState();
-}
-
-class _PlantsLoadingPromptState extends State<_PlantsLoadingPrompt> {
-  bool _slow = false;
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _slow = true);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -360,18 +336,7 @@ class _PlantsLoadingPromptState extends State<_PlantsLoadingPrompt> {
         children: [
           const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary)),
           const SizedBox(height: 12),
-          Text(
-            _slow ? 'Waking up the server…' : 'Loading your garden…',
-            style: AppTypography.body(AppColors.textSecondaryOf(context)),
-          ),
-          if (_slow) ...[
-            const SizedBox(height: 4),
-            Text(
-              'This can take up to a minute after the app has been idle a while.',
-              textAlign: TextAlign.center,
-              style: AppTypography.caption(AppColors.textSecondaryOf(context)),
-            ),
-          ],
+          Text('Loading your garden…', style: AppTypography.body(AppColors.textSecondaryOf(context))),
         ],
       ),
     );

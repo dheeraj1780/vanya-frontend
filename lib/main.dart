@@ -182,8 +182,9 @@ class RootRouter extends StatelessWidget {
         return const PlantFactsScreen();
       case 'paywall':
         return const PaywallScreen();
-      case 'settings':
-        return const SettingsScreen();
+      // 'settings' is no longer handled here -- it's a tab-shell screen
+      // now (see AppState.tabScreens/_TabShell above), so RootRouter.build
+      // routes it there before this switch is ever consulted.
       case 'plan':
         return const PlanScreen();
       case 'notifications':
@@ -204,9 +205,10 @@ class RootRouter extends StatelessWidget {
   }
 }
 
-/// Shared Scaffold + floating bottom nav for the three top-level tabs.
-/// Home/MyPlantsScreen/RemindersScreen render only their body content (no
-/// own Scaffold/AppBar) so they slot into this shell cleanly.
+/// Shared Scaffold + floating bottom nav for the four top-level tabs.
+/// Home/MyPlantsScreen/RemindersScreen/SettingsScreen render only their
+/// body content (no own Scaffold/AppBar) so they slot into this shell
+/// cleanly.
 class _TabShell extends StatelessWidget {
   final String screen;
   const _TabShell({required this.screen});
@@ -217,6 +219,7 @@ class _TabShell extends StatelessWidget {
     final Widget body = switch (screen) {
       'myPlants' => const MyPlantsScreen(),
       'reminders' => const RemindersScreen(),
+      'settings' => const SettingsScreen(),
       _ => const HomeScreen(),
     };
 
@@ -230,6 +233,7 @@ class _TabShell extends StatelessWidget {
         onMyPlants: () => appState.goTo('myPlants'),
         onScan: () => appState.goTo('addPlant'),
         onReminders: () => appState.goTo('reminders'),
+        onSettings: () => appState.goTo('settings'),
       ),
     );
   }

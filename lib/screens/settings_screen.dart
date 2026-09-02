@@ -57,7 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Western ones) while guaranteeing the greeting never has to
           // fall back to an ellipsis.
           maxLength: 40,
-          decoration: const InputDecoration(hintText: 'e.g. Priya'),
+          decoration: const InputDecoration(hintText: 'Enter your name here'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
@@ -287,14 +287,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => appState.goBack(fallback: 'home')),
-        title: const Text('Settings'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+    // Now a tab-shell body (see main.dart's _TabShell) — Settings moved
+    // from a standalone pushed screen (own Scaffold/AppBar/back button) to
+    // a fifth peer tab alongside Home/My Plants/Reminders, reached from
+    // CustomBottomNav instead of tapping the Home header's avatar. No own
+    // Scaffold/AppBar here now, same as HomeScreen/RemindersScreen — the
+    // page title is a plain in-body heading instead of an AppBar title,
+    // and there's no back button since switching away is just tapping a
+    // different bottom-nav icon, same as the other tabs.
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 140),
+      children: [
+        Text('Settings', style: AppTypography.h1(AppColors.textOf(context))),
+        const SizedBox(height: 18),
           if (appState.isGuest)
             Container(
               padding: const EdgeInsets.all(14),
@@ -483,8 +488,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ],
-      ),
-    );
+      );
   }
 }
 

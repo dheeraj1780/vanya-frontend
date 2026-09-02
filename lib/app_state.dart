@@ -201,11 +201,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Home / My Plants / Reminders share one persistent bottom-nav shell (see
-  // main.dart's RootRouter/_TabShell) — kept here too so goTo/goBack can
-  // reason about tab switches without main.dart handing that knowledge back
-  // in.
-  static const tabScreens = {'home', 'myPlants', 'reminders'};
+  // Home / My Plants / Reminders / Settings share one persistent bottom-nav
+  // shell (see main.dart's RootRouter/_TabShell) — kept here too so goTo/
+  // goBack can reason about tab switches without main.dart handing that
+  // knowledge back in. Settings joined this set when it moved from a
+  // standalone pushed screen (reached by tapping the Home header's avatar)
+  // to a fifth peer tab on the bottom nav itself.
+  static const tabScreens = {'home', 'myPlants', 'reminders', 'settings'};
 
   // This app has no Navigator route stack — every screen change is just
   // this `screen` string flipping (see RootRouter in main.dart) — so

@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// Floating, rounded bottom navigation — replaces the default Material
-/// BottomNavigationBar look per the redesign brief. Four destinations:
-/// Home, My Plants, Scan (visually emphasized as a raised center button —
-/// it's an action shortcut to Add Plant, not a persistent tab), Reminders.
+/// BottomNavigationBar look per the redesign brief. Five destinations,
+/// Scan dead-center: Home, My Plants, Scan (visually emphasized as a
+/// raised center button — it's an action shortcut to Add Plant, not a
+/// persistent tab), Reminders, Settings. Settings joined as the fifth
+/// slot when it moved off the Home header's avatar onto the bottom nav
+/// itself, same as the other three real tabs.
 class CustomBottomNav extends StatelessWidget {
-  final String current; // 'home' | 'myPlants' | 'reminders' (scan has no "current" state — it's an action)
+  final String current; // 'home' | 'myPlants' | 'reminders' | 'settings' (scan has no "current" state — it's an action)
   final VoidCallback onHome;
   final VoidCallback onMyPlants;
   final VoidCallback onScan;
   final VoidCallback onReminders;
+  final VoidCallback onSettings;
 
   const CustomBottomNav({
     super.key,
@@ -19,6 +23,7 @@ class CustomBottomNav extends StatelessWidget {
     required this.onMyPlants,
     required this.onScan,
     required this.onReminders,
+    required this.onSettings,
   });
 
   static const double _pillHeight = 68;
@@ -68,17 +73,19 @@ class CustomBottomNav extends StatelessWidget {
                   children: [
                     _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home', selected: current == 'home', onTap: onHome),
                     _NavItem(icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view, label: 'My Plants', selected: current == 'myPlants', onTap: onMyPlants),
-                    // Real space reserved for Scan's slot — the tappable
-                    // button itself is the overlay below, so its raised
-                    // circle isn't clipped down to this pill's own height.
+                    // Real space reserved for Scan's slot, dead-center
+                    // among the five — the tappable button itself is the
+                    // overlay below, so its raised circle isn't clipped
+                    // down to this pill's own height.
                     const SizedBox(width: 62),
                     _NavItem(icon: Icons.notifications_none, activeIcon: Icons.notifications, label: 'Reminders', selected: current == 'reminders', onTap: onReminders),
+                    _NavItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Settings', selected: current == 'settings', onTap: onSettings),
                   ],
                 ),
               ),
             ),
             // Mirrors the Row above exactly (same outer padding, same
-            // four 62-wide items, same spaceBetween) so the real
+            // five 62-wide items, same spaceBetween) so the real
             // _ScanButton's horizontal position matches the reserved slot
             // precisely, without hardcoding an X offset that would drift
             // on a different screen width.
@@ -94,6 +101,7 @@ class CustomBottomNav extends StatelessWidget {
                     const SizedBox(width: 62),
                     const SizedBox(width: 62),
                     _ScanButton(onTap: onScan),
+                    const SizedBox(width: 62),
                     const SizedBox(width: 62),
                   ],
                 ),

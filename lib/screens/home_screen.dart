@@ -111,17 +111,17 @@ class HomeScreen extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Small and quiet on purpose — no border ring, no drop shadow.
-            // Its job now is just "tap to reach Settings", not to anchor a
-            // whole card's visual weight the way it did before.
-            GestureDetector(
-              onTap: () => appState.goTo('settings'),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: AppColors.primaryTintPairOf(context).$1, shape: BoxShape.circle),
-                child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 19),
-              ),
+            // No longer tappable — Settings moved off this avatar and onto
+            // the bottom nav as its own fifth tab (see CustomBottomNav),
+            // so tapping here would just duplicate that instead of being
+            // the one way to reach it. Kept purely as a quiet identity
+            // element next to the greeting, small on purpose, no border
+            // ring or drop shadow.
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: AppColors.primaryTintPairOf(context).$1, shape: BoxShape.circle),
+              child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 19),
             ),
             const SizedBox(width: 12),
             Expanded(

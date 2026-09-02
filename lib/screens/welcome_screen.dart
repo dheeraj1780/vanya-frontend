@@ -71,10 +71,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text('Never lose\na plant again', textAlign: TextAlign.center, style: AppTypography.display(AppColors.primary)),
+                          Text('Every plant has a story.\nYours starts here.', textAlign: TextAlign.center, style: AppTypography.display(AppColors.primary)),
                           const SizedBox(height: 14),
                           Text(
-                            'Snap a photo, get care instructions, and know exactly when to water.',
+                            'Snap a photo or tell us the name — get care instructions and know exactly when to water.',
                             textAlign: TextAlign.center,
                             style: AppTypography.bodyLarge(AppColors.textSecondaryOf(context)),
                           ),

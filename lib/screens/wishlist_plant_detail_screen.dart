@@ -94,12 +94,41 @@ class _WishlistPlantDetailScreenState extends State<WishlistPlantDetailScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            SecondaryButton(
-              label: 'Growth Journey',
-              icon: Icons.eco_outlined,
-              onPressed: () => appState.goTo('growthJourney', withReturnTo: 'wishlistPlantDetail'),
-            ),
+            // No Growth Journey entry here — this screen's own docstring
+            // already draws the line: a wishlist plant "isn't actually
+            // being cared for yet... not a care dashboard." Growth Journey
+            // is dated photo memories tracking a plant's care over time;
+            // there's no journey to document for something that isn't
+            // being grown yet. It's still reachable normally once the
+            // plant is actually moved into the garden.
+            if (plant.funFacts.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              // No "About your X" framing here on purpose — this is a
+              // plant the user doesn't own yet, so a plain "Fun facts"
+              // label (same as "Also known as" above it) avoids implying
+              // possession the way PlantFactsScreen's title correctly
+              // does for an owned plant.
+              Text('FUN FACTS', style: AppTypography.caption(AppColors.textSecondaryOf(context)).copyWith(letterSpacing: 0.4)),
+              const SizedBox(height: 8),
+              for (final fact in plant.funFacts)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceOf(context),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: AppColors.borderOf(context)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.auto_awesome, size: 15, color: AppColors.accent),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(fact, style: AppTypography.body(AppColors.textOf(context)).copyWith(height: 1.5))),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
       ),

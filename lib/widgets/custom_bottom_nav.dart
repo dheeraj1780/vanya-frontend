@@ -79,7 +79,7 @@ class CustomBottomNav extends StatelessWidget {
                     // down to this pill's own height.
                     const SizedBox(width: 62),
                     _NavItem(icon: Icons.notifications_none, activeIcon: Icons.notifications, label: 'Reminders', selected: current == 'reminders', onTap: onReminders),
-                    _NavItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Settings', selected: current == 'settings', onTap: onSettings),
+                    _NavItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile', selected: current == 'settings', onTap: onSettings),
                   ],
                 ),
               ),

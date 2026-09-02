@@ -31,22 +31,16 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
 
   Future<void> _handleCapture() async {
     final appState = context.read<AppState>();
-    // Tier-aware pre-check (proactive UX only — the real, secure check
-    // happens server-side in check_plant_slot_limit regardless). Falls
-    // back to blocking at 3 if entitlement hasn't loaded yet rather than
-    // letting an unbounded number of plants through.
-    final plantLimit = appState.entitlement?.plantLimit ?? 3;
-    if (appState.plants.length >= plantLimit) {
-      if (appState.isGuest) {
-        appState.guestGateReason = "You've discovered $plantLimit plants with VANYA. Sign in to become a Plantie and keep growing your garden.";
-        appState.goTo('guestGate', withReturnTo: 'home');
-      } else {
-        appState.trackEvent('plant_limit_reached');
-        appState.goTo('paywall', withReturnTo: 'home');
-      }
-      return;
-    }
-
+    // BUG FIX: this used to pre-check garden slot capacity (plantLimit)
+    // here and block scanning outright the moment the garden was full —
+    // wrong, because identifying a plant doesn't need anywhere to put it.
+    // Someone might just be curious, or want to save it to their wishlist
+    // instead (separate capacity from the garden), and either way this
+    // ran before _handleSave even knows which destination they'll pick.
+    // Garden capacity is still enforced -- correctly, at the moment it
+    // actually matters -- inside _handleSave when status=='active', via
+    // the server's check_plant_limit (PLAN_LIMIT_EXCEEDED -> paywall,
+    // same as before, just at the right step instead of every scan).
     final file = await pickPlantImage(context);
     if (file == null) return;
     if (!mounted) return;

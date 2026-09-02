@@ -298,7 +298,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 140),
       children: [
-        Text('Settings', style: AppTypography.h1(AppColors.textOf(context))),
+        // User-facing label is "Profile" now (nav tab label too, see
+        // CustomBottomNav) -- internal screen id/class name stay
+        // 'settings'/SettingsScreen, purely a display-text change.
+        Text('Profile', style: AppTypography.h1(AppColors.textOf(context))),
         const SizedBox(height: 18),
           if (appState.isGuest)
             Container(

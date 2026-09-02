@@ -108,59 +108,50 @@ class HomeScreen extends StatelessWidget {
         // warm background, the same way a masthead or a letter's
         // salutation would, and lets Today's care right below it be the
         // first actual "card" the eye lands on.
+        // No avatar here anymore — a person-icon-in-a-circle is a near-
+        // universal "tap for your account" affordance, and it wasn't one:
+        // once Profile got its own proper tab on the bottom nav, this icon
+        // did nothing when tapped, which is worse than not being there at
+        // all — an element that *looks* interactive but isn't teaches
+        // people to distrust every tappable-looking thing in the app. It
+        // was never showing a real photo either (just a generic
+        // placeholder), so removing it loses nothing and the greeting gets
+        // the header's full width to itself.
+        //
+        // maxLines: 2, not 1 — a 1-line cap on a serif h1 is what forced
+        // "Good morning, Chandrasekaran" down to "Good morning, Chan..."
+        // for any real name longer than ~14 characters. _editName's
+        // 40-char cap (settings_screen.dart) still degrades to the
+        // ellipsis below for the rare maxed-out name on a narrow phone —
+        // sized for the common case, not a hard guarantee.
+        Text(
+          _greeting(appState.userName),
+          style: AppTypography.h1(AppColors.textOf(context)),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 6),
+        // Plan badge + today's date, both quiet secondary-line info —
+        // replaces the old "X plant(s) need water today" line, which just
+        // repeated the Today's care section word-for-word one glance below it.
+        // mainAxisSize.min, and the date is no longer wrapped in Expanded —
+        // an Expanded Text stretched this row's hit-testable/visual claim
+        // across the full page width even though "Thursday, 3 September"
+        // is short, leaving a long stretch of unused space on the right
+        // that read like something was missing there. Sitting at its
+        // natural content width instead matches how the greeting above it
+        // already behaves.
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // No longer tappable — Settings moved off this avatar and onto
-            // the bottom nav as its own fifth tab (see CustomBottomNav),
-            // so tapping here would just duplicate that instead of being
-            // the one way to reach it. Kept purely as a quiet identity
-            // element next to the greeting, small on purpose, no border
-            // ring or drop shadow.
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: AppColors.primaryTintPairOf(context).$1, shape: BoxShape.circle),
-              child: Icon(Icons.person_outline, color: AppColors.primaryTintPairOf(context).$2, size: 19),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // maxLines: 2, not 1 — a 1-line cap on a serif h1 is what
-                  // forced "Good morning, Chandrasekaran" down to "Good
-                  // morning, Chan..." for any real name longer than ~14
-                  // characters. _editName's 40-char cap (settings_screen.
-                  // dart) still degrades to the ellipsis below for the rare
-                  // maxed-out name on a narrow phone — sized for the common
-                  // case, not a hard guarantee, same as before.
-                  Text(
-                    _greeting(appState.userName),
-                    style: AppTypography.h1(AppColors.textOf(context)),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  // Plan badge + today's date, both quiet secondary-line
-                  // info — replaces the old "X plant(s) need water today"
-                  // line, which just repeated the Today's care section
-                  // word-for-word one glance below it.
-                  Row(
-                    children: [
-                      PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _today(),
-                          style: AppTypography.body(AppColors.textSecondaryOf(context)),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            PlanBadge(planKey: appState.entitlement?.plan ?? (appState.isGuest ? 'guest' : 'plantie'), compact: true),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                _today(),
+                style: AppTypography.body(AppColors.textSecondaryOf(context)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

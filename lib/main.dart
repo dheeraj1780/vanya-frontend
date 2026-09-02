@@ -69,14 +69,13 @@ class _PlantCompanionAppState extends State<PlantCompanionApp> with WidgetsBindi
   // presentation gate shown once on top of that, not part of AppState's own
   // routing, so it doesn't need to know or care which screen is under it.
   //
-  // Seeded from AppState.hasSeenIntro (disk-backed), not hardcoded true —
-  // see that field's own docstring: Android can kill this app's process in
-  // the background at any time to reclaim memory, and silently restarts it
-  // (a real cold start at the Dart level) the moment the user taps back
-  // into it, indistinguishable from a genuine cold start unless something
-  // survives the process death. A plain in-memory bool here used to make
-  // the intro replay "inconsistently" depending on whether Android had
-  // reclaimed the process since the user last looked at the app.
+  // Seeded from AppState.hasSeenIntro, which is in-memory only (not
+  // disk-backed) on purpose — see that field's own docstring: the intro
+  // is meant to replay on every genuine fresh process start (a real
+  // close-and-reopen), which is exactly what a fresh in-memory default
+  // gives here, at the accepted cost of also occasionally replaying after
+  // plain backgrounding if Android happens to reclaim the process in
+  // between (indistinguishable from a real close at this level).
   late bool _showSplash = !context.read<AppState>().hasSeenIntro;
 
   @override
@@ -118,7 +117,7 @@ class _PlantCompanionAppState extends State<PlantCompanionApp> with WidgetsBindi
       home: _showSplash
           ? SplashScreen(
               onDone: () {
-                unawaited(context.read<AppState>().markIntroSeen());
+                context.read<AppState>().markIntroSeen();
                 setState(() => _showSplash = false);
               },
             )

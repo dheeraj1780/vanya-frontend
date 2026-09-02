@@ -15,7 +15,6 @@ class AppState extends ChangeNotifier {
   static const _sessionKey = 'plant_companion_session_token';
   static const _isGuestKey = 'plant_companion_is_guest';
   static const _deviceUuidKey = 'plant_companion_device_uuid';
-  static const _hasSeenIntroKey = 'plant_companion_has_seen_intro';
 
   final ApiClient api = ApiClient();
   late SharedPreferences _prefs;
@@ -33,21 +32,23 @@ class AppState extends ChangeNotifier {
 
   String? token;
   bool isGuest = false;
-  // BUG (reported: intro video "replays inconsistently" on a plain
-  // Home-button resume, not just a genuine force-close): this used to be
-  // tracked purely in-memory (a bool on main.dart's own State, defaulting
-  // true every time). That's fine as long as the Dart process stays alive,
-  // but Android is free to kill *any* backgrounded app's process to
-  // reclaim memory — and when the user taps back into it, Android
-  // transparently restarts the process, which for Flutter means main()
-  // genuinely runs again from scratch. There's no way to tell that apart
-  // from a real cold start at the Dart level; the OS decides when this
-  // happens, which device/memory pressure at the time makes it look
-  // "inconsistent" rather than deterministic. Persisting to disk here
-  // (survives process death, only reset by uninstall/clear-data) makes
-  // the intro show once per install, full stop — not once per process —
-  // which is both the fix and, per most apps' own convention, the more
-  // sensible behavior anyway.
+  // Deliberately in-memory only, not persisted — product decision:
+  // "Supercell-style" (the reference given when this was decided) — the
+  // intro should replay whenever the app genuinely starts fresh (force-
+  // closed/swiped from Recents and reopened), but never while it's just
+  // sitting backgrounded and gets resumed via Home/task-switch.
+  //
+  // The real trade-off, made with this understood: Android is free to
+  // kill *any* backgrounded app's process to reclaim memory, and when the
+  // user taps back in, Android transparently restarts it — for Flutter
+  // that means main() genuinely runs again from scratch, and there is no
+  // way to tell that apart from a real deliberate close at the Dart
+  // level. So this can also replay after ordinary backgrounding, exactly
+  // when the OS happened to reclaim the process in between — accepted as
+  // an occasional, unpredictable side effect rather than something the
+  // code can fully control, in exchange for actually replaying on real
+  // closes (which persisting this to disk, the previous approach, never
+  // did — that made it once-per-install, full stop).
   bool hasSeenIntro = false;
   List<Plant> plants = [];
   // Distinguishes "still loading" from "genuinely has zero plants" — Home
@@ -115,12 +116,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Called once by SplashScreen's onDone (see main.dart) — persists so a
-  /// later OS-driven process restart doesn't show the intro again; see
-  /// hasSeenIntro's own docstring above for why that matters.
-  Future<void> markIntroSeen() async {
+  /// Called once by SplashScreen's onDone (see main.dart) — in-memory only,
+  /// not persisted; see hasSeenIntro's own docstring for why that's the
+  /// deliberate choice here.
+  void markIntroSeen() {
     hasSeenIntro = true;
-    await _prefs.setBool(_hasSeenIntroKey, true);
   }
 
   Plant? get selectedPlant {
@@ -169,7 +169,9 @@ class AppState extends ChangeNotifier {
     _prefs = await SharedPreferences.getInstance();
     token = _prefs.getString(_sessionKey);
     isGuest = _prefs.getBool(_isGuestKey) ?? false;
-    hasSeenIntro = _prefs.getBool(_hasSeenIntroKey) ?? false;
+    // hasSeenIntro is NOT loaded from prefs — it stays at its in-memory
+    // default (false) on every fresh process start, on purpose. See its
+    // own docstring above.
 
     // BUG: userEmail was only ever set by a single synchronous read of
     // fb.FirebaseAuth.instance.currentUser?.email inside

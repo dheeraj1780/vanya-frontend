@@ -108,6 +108,32 @@ class Plant {
   DateTime get nextWateringDue =>
       lastWateredAt == null ? DateTime.now() : lastWateredAt!.add(Duration(days: waterFrequencyDays));
 
+  /// The exact inverse of fromJson — used only to write the local
+  /// stale-while-revalidate cache (see AppState._cachePlants). Every key
+  /// here must match fromJson's key exactly so a cached plant round-trips
+  /// through fromJson unchanged on the next app open.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'status': status,
+        'nickname': nickname,
+        'species': species,
+        'species_confidence': speciesConfidence,
+        'light_needs': lightNeeds,
+        'water_frequency_days': waterFrequencyDays,
+        'photo_url': photoUrl,
+        'last_watered_at': lastWateredAt?.toIso8601String(),
+        'fun_facts': funFacts,
+        'regional_names': regionalNames,
+        'soil_type': soilType,
+        'soil_amendments': soilAmendments,
+        'is_indoor': isIndoor,
+        'is_pet_safe': isPetSafe,
+        'is_air_purifying': isAirPurifying,
+        'care_difficulty': careDifficulty,
+        'created_at': createdAt.toIso8601String(),
+        'growth_background': growthBackground,
+      };
+
   /// Client-side copy used only for the optimistic "mark watered" update in
   /// HomeScreen/PlantDetailScreen — the server write still happens via the
   /// API client, this just keeps the UI responsive while that's in flight.

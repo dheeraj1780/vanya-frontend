@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -15,6 +16,12 @@ class AppState extends ChangeNotifier {
   static const _sessionKey = 'plant_companion_session_token';
   static const _isGuestKey = 'plant_companion_is_guest';
   static const _deviceUuidKey = 'plant_companion_device_uuid';
+  // Local stale-while-revalidate cache of the last successfully-fetched
+  // plant list — see _loadCachedPlants/_cachePlants below. Deliberately a
+  // plain JSON blob in the same SharedPreferences store as everything
+  // else here (not a new dependency like sqflite/Hive), since it only
+  // ever needs one whole-list read/write, never a query.
+  static const _plantsCacheKey = 'plant_companion_cached_plants_v1';
 
   final ApiClient api = ApiClient();
   late SharedPreferences _prefs;
@@ -191,6 +198,12 @@ class AppState extends ChangeNotifier {
 
     if (token != null) {
       screen = 'home';
+      // Paint the last-known garden immediately from disk, before the
+      // network call below even starts — see _loadCachedPlants' own
+      // docstring for why this is safe to show as-is (never the final
+      // word, always superseded by the refreshPlants() call right after
+      // it, on this exact same line).
+      _loadCachedPlants();
       // Fire-and-forget, same tolerance as the React version — a failed
       // refresh shouldn't block showing the (possibly stale) cached UI.
       // Chained (not run in parallel with refreshPlants) so reminders are
@@ -199,6 +212,46 @@ class AppState extends ChangeNotifier {
       unawaited(refreshEntitlement());
     }
     notifyListeners();
+  }
+
+  /// Instant-paint fallback for a cold start on a slow/waking backend —
+  /// directly answers the "can't see my own garden while offline/slow"
+  /// gap. Reads whatever refreshPlants last successfully wrote (see
+  /// _cachePlants below) and shows it right away, exactly as it looked at
+  /// that last successful fetch — never a merge, never partially updated,
+  /// so there's no split-state to get wrong. It is ALWAYS immediately
+  /// superseded by the real refreshPlants() call that runs right after
+  /// this in bootstrap(), so a stale nickname or watering date shown here
+  /// self-corrects within the time of one network round-trip, every
+  /// single time — there is no code path where this cache is the last
+  /// word, which is what rules out the "silently wrong forever" bug class
+  /// a naive cache normally risks. If there's no cache yet (first-ever
+  /// install) this is a no-op and the existing loading state is untouched.
+  void _loadCachedPlants() {
+    try {
+      final raw = _prefs.getString(_plantsCacheKey);
+      if (raw == null) return;
+      final decoded = jsonDecode(raw) as List;
+      plants = decoded.map((e) => Plant.fromJson(e as Map<String, dynamic>)).toList();
+      hasLoadedPlantsOnce = true; // so Home/My Plants render this, not the loading skeleton
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to load cached plants (ignoring, will refetch): $e');
+    }
+  }
+
+  /// Overwrites the on-disk snapshot with the real server response —
+  /// called only after a genuinely successful refreshPlants(), so this
+  /// can never persist a partial/failed fetch. Best-effort: a write
+  /// failure here just means the next cold start falls back to the
+  /// ordinary loading state instead of an instant paint, never a crash or
+  /// a stuck stale value.
+  Future<void> _cachePlants(List<Plant> list) async {
+    try {
+      await _prefs.setString(_plantsCacheKey, jsonEncode(list.map((p) => p.toJson()).toList()));
+    } catch (e) {
+      debugPrint('Failed to cache plants (proceeding anyway): $e');
+    }
   }
 
   // Home / My Plants / Reminders / Settings share one persistent bottom-nav
@@ -320,6 +373,7 @@ class AppState extends ChangeNotifier {
         plantsLoadError = '';
         notifyListeners();
         unawaited(WidgetService.updateFromPlants(plants));
+        unawaited(_cachePlants(plants));
         return;
       } catch (e) {
         debugPrint('Failed to refresh plants (attempt $attempt/$maxAttempts): $e');
@@ -510,6 +564,10 @@ class AppState extends ChangeNotifier {
     try {
       await _prefs.remove(_sessionKey);
       await _prefs.remove(_isGuestKey);
+      // So a next sign-in on this same device (a different account, or a
+      // fresh guest) can never even momentarily show the previous
+      // account's cached garden before its own refreshPlants() lands.
+      await _prefs.remove(_plantsCacheKey);
     } catch (e) {
       debugPrint('Clearing stored session failed (proceeding anyway): $e');
     }
@@ -547,6 +605,10 @@ class AppState extends ChangeNotifier {
     try {
       await _prefs.remove(_sessionKey);
       await _prefs.remove(_isGuestKey);
+      // So a next sign-in on this same device (a different account, or a
+      // fresh guest) can never even momentarily show the previous
+      // account's cached garden before its own refreshPlants() lands.
+      await _prefs.remove(_plantsCacheKey);
     } catch (e) {
       debugPrint('Clearing stored session failed (proceeding anyway): $e');
     }
@@ -631,6 +693,10 @@ class AppState extends ChangeNotifier {
     try {
       await _prefs.remove(_sessionKey);
       await _prefs.remove(_isGuestKey);
+      // So a next sign-in on this same device (a different account, or a
+      // fresh guest) can never even momentarily show the previous
+      // account's cached garden before its own refreshPlants() lands.
+      await _prefs.remove(_plantsCacheKey);
     } catch (e) {
       debugPrint('Clearing stored session failed (proceeding anyway): $e');
     }

@@ -11,6 +11,7 @@ import 'screens/permissions_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/add_plant_screen.dart';
+import 'screens/manual_add_screen.dart';
 import 'screens/plant_detail_screen.dart';
 import 'screens/diagnose_screen.dart';
 import 'screens/diagnosis_result_screen.dart';
@@ -172,6 +173,8 @@ class RootRouter extends StatelessWidget {
         return const SignInScreen();
       case 'addPlant':
         return const AddPlantScreen();
+      case 'manualAdd':
+        return const ManualAddScreen();
       case 'plantDetail':
         return const PlantDetailScreen();
       case 'diagnose':

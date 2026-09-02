@@ -298,6 +298,14 @@ class ApiClient {
     return IdentifyResult.fromJson(data);
   }
 
+  /// The "I already know this plant" path — see ManualAddScreen. Same
+  /// response shape and same ai_actions cost as identifyPlant, just a
+  /// name in instead of a photo.
+  Future<IdentifyResult> identifyPlantByName(String token, String plantName) async {
+    final data = await _request('/ai/identify-by-name', method: 'POST', token: token, body: {'plant_name': plantName});
+    return IdentifyResult.fromJson(data);
+  }
+
   Future<DiagnosisResult> diagnosePlant(
     String token,
     String plantId,

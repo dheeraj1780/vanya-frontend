@@ -269,6 +269,18 @@ class HomeScreen extends StatelessWidget {
                 },
               ),
             ),
+            const SizedBox(width: 12),
+            // Skips the camera entirely for someone who already knows
+            // their plant — a text-only lookup (ManualAddScreen) fills in
+            // the same care facts a photo identify would, from the name
+            // instead of an image.
+            Expanded(
+              child: _QuickAction(
+                icon: Icons.edit_note_outlined,
+                label: 'I know it',
+                onTap: () => appState.goTo('manualAdd', withReturnTo: 'home'),
+              ),
+            ),
           ],
         ),
       ],

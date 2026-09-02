@@ -62,6 +62,15 @@ dependencies:
   home_widget: ^0.9.3
   firebase_messaging: ^15.2.10
 
+  # Growth Journey share card (see screens/growth_journey_screen.dart) —
+  # share_plus hands a rendered PNG to the OS share sheet (Instagram
+  # Stories, WhatsApp, Save to Photos, ...); path_provider gives it a
+  # real temp-file path to hand over, since the share sheet needs a file,
+  # not raw bytes. Client-only — no backend involved, no new privacy
+  # surface, see that screen's _handleShare docstring.
+  share_plus: ^10.1.4
+  path_provider: ^2.1.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

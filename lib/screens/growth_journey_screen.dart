@@ -1,10 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../api/client.dart';
 import '../app_state.dart';
 import '../models/models.dart';
@@ -67,6 +71,8 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
   String _status = 'loading'; // loading | idle | error
   String _errorMessage = '';
   List<GrowthMemory> _memories = [];
+  final GlobalKey _shareCardKey = GlobalKey();
+  bool _sharing = false;
 
   @override
   void initState() {
@@ -190,6 +196,89 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
     }
   }
 
+  /// Renders a purpose-built portrait card (not a screenshot of this
+  /// screen) off-screen, captures it to a PNG, and hands that file to the
+  /// OS share sheet via share_plus. Everything happens on-device: no
+  /// backend call, nothing about this plant ever becomes reachable by a
+  /// stranger — the image only goes wherever the user explicitly picks in
+  /// the share sheet (Instagram Stories, WhatsApp, Save to Photos, ...),
+  /// same trust boundary as sharing any other photo from the gallery.
+  /// This is the approach recommended over a public web page specifically
+  /// because it adds no new privacy surface and reaches every share
+  /// destination at once instead of building one platform's deep link at
+  /// a time.
+  ///
+  /// Capture technique: _GrowthShareCard below is inserted into an
+  /// Overlay (so it's genuinely laid out and painted — unlike an Offstage
+  /// subtree, which never paints at all) positioned far outside the
+  /// visible screen, wrapped in a RepaintBoundary. Once it's painted,
+  /// RenderRepaintBoundary.toImage() reads that layer straight to a
+  /// bitmap — pixelRatio: 3 for a sharp ~1080px-wide PNG regardless of
+  /// the device's own screen density. The cover photo is precached first
+  /// so the overlay's first paint already has it, instead of capturing a
+  /// loading placeholder.
+  Future<void> _handleShare() async {
+    final appState = context.read<AppState>();
+    final plant = appState.growthJourneyPlant;
+    if (plant == null || _sharing) return;
+    setState(() => _sharing = true);
+
+    final coverUrl = _memories.isNotEmpty ? _memories.last.photoUrl : plant.photoUrl;
+    if (coverUrl != null && coverUrl.isNotEmpty) {
+      try {
+        await precacheImage(NetworkImage(coverUrl), context);
+      } catch (e) {
+        debugPrint('Could not precache the share card\'s cover photo (continuing anyway): $e');
+      }
+    }
+    if (!mounted) return;
+
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: -10000, // painted (so it can be captured), nowhere near the visible viewport
+        top: 0,
+        child: Material(
+          color: Colors.transparent,
+          child: RepaintBoundary(
+            key: _shareCardKey,
+            child: _GrowthShareCard(plant: plant, coverUrl: coverUrl, memoryCount: _memories.length),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry);
+
+    try {
+      // One extra frame so the just-inserted overlay entry has actually
+      // painted before capture — doing both in the same frame can race
+      // ahead of that first real paint.
+      await WidgetsBinding.instance.endOfFrame;
+      await WidgetsBinding.instance.endOfFrame;
+
+      final boundary = _shareCardKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) throw Exception('Could not encode the share card image');
+
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/vanya_growth_${plant.id}.png');
+      await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+
+      appState.trackEvent('growth_journey_shared');
+      await Share.shareXFiles([XFile(file.path)], text: '${plant.nickname}\'s growth journey, tracked with VANYA 🌿');
+    } catch (e) {
+      debugPrint('Failed to build/share the growth card: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not create the share card. Try again.')));
+      }
+    } finally {
+      entry.remove();
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
   Future<void> _handleDelete(GrowthMemory memory) async {
     final appState = context.read<AppState>();
     final plant = appState.growthJourneyPlant;
@@ -243,6 +332,13 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
         leading: BackButton(onPressed: () => appState.goBack(fallback: 'home')),
         title: const Text('Growth Journey'),
         actions: [
+          IconButton(
+            tooltip: 'Share this journey',
+            onPressed: plant == null || _sharing ? null : _handleShare,
+            icon: _sharing
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+                : const Icon(Icons.ios_share),
+          ),
           IconButton(
             tooltip: 'Change background',
             onPressed: plant == null ? null : _handleChangeBackground,
@@ -517,6 +613,148 @@ class _VineView extends StatelessWidget {
   /// plain generic pot when there's no preset (no background chosen yet,
   /// or a custom gallery photo, which has no themed pot of its own).
   String _potAssetPath() => _currentPreset()?.potAssetPath ?? 'assets/images/growth_pot.png';
+}
+
+/// The share card itself — deliberately its own composition, not a
+/// screenshot of the vine screen (which is a scrolling, interactive view
+/// with edit affordances that make no sense in a shared image). Reuses
+/// the same background preset and decorative type treatment
+/// (unifrakturMaguntia) as the rest of Growth Journey so a shared card
+/// reads as unmistakably "from VANYA" rather than a generic template.
+/// Built at a fixed 1080x1920 logical size (a standard portrait share
+/// ratio, native to Instagram/WhatsApp Stories and safe letterboxed
+/// anywhere else) — see _handleShare's docstring for how this gets
+/// captured to a PNG.
+class _GrowthShareCard extends StatelessWidget {
+  final Plant plant;
+  final String? coverUrl;
+  final int memoryCount;
+  const _GrowthShareCard({required this.plant, required this.coverUrl, required this.memoryCount});
+
+  GrowthBackgroundPreset? _preset() {
+    final bg = plant.growthBackground;
+    if (bg == null || !bg.startsWith('preset:')) return null;
+    final key = bg.substring('preset:'.length);
+    for (final p in kGrowthBackgroundPresets) {
+      if (p.key == key) return p;
+    }
+    return null;
+  }
+
+  String _daysGrowingLabel() {
+    final days = DateTime.now().difference(plant.createdAt).inDays;
+    if (days < 1) return 'Just started';
+    if (days == 1) return '1 day growing';
+    return '$days days growing';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final preset = _preset();
+    return SizedBox(
+      width: 1080,
+      height: 1920,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.primaryTintPairOf(context).$2, AppColors.primary, AppColors.primaryDark],
+          ),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // The plant's own chosen Growth Journey backdrop, if it picked
+            // one — ties the card back to the actual screen it came from,
+            // same reasoning as reusing the pot/theme system elsewhere.
+            if (preset != null)
+              Opacity(
+                opacity: 0.55,
+                child: Image.asset(preset.assetPath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+              ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withValues(alpha: 0.15), Colors.black.withValues(alpha: 0.55)],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(72, 140, 72, 96),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        width: 340,
+                        height: 340,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 6),
+                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 40, offset: Offset(0, 16))],
+                        ),
+                        padding: const EdgeInsets.all(6),
+                        child: ClipOval(child: PlantImage(url: coverUrl, borderRadius: 999)),
+                      ),
+                      const SizedBox(height: 48),
+                      Text(
+                        plant.nickname,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.unifrakturMaguntia(fontSize: 76, color: Colors.white, height: 1.15),
+                      ),
+                      if (plant.species != null && plant.species!.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          plant.species!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 30, fontStyle: FontStyle.italic, color: Colors.white70),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                        ),
+                        child: Text(
+                          '${_daysGrowingLabel()} · $memoryCount ${memoryCount == 1 ? "memory" : "memories"}',
+                          style: const TextStyle(fontFamily: 'monospace', fontSize: 26, color: Colors.white, letterSpacing: 0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.eco, color: Colors.white, size: 30),
+                          const SizedBox(width: 10),
+                          Text(
+                            'VANYA · every plant has a story',
+                            style: TextStyle(fontSize: 24, color: Colors.white.withValues(alpha: 0.9), letterSpacing: 0.3),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Small opaque-ish backdrop behind any text sitting directly on top of a

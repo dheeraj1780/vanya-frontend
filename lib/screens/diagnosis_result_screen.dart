@@ -137,7 +137,10 @@ class PlantFactsScreen extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.grass, size: 15, color: AppColors.sage),
+                        // Deliberately earth (brown), not sage — the one
+                        // place in this screen the content is literally
+                        // about soil. See AppColors.earth's docstring.
+                        Icon(Icons.grass, size: 15, color: AppColors.earthTintPairOf(context).$2),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(

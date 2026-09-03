@@ -30,6 +30,27 @@ class AppColors {
   static const accent = Color(0xFFC17A4F);
   static const accentTint = Color(0xFFF3E3D3);
 
+  // ---- Earth — the app's second brand color, a deliberate deep soil
+  // brown (not the lighter, more orange accent above — that stays
+  // reserved for alerts, so "this is brand-brown" never reads as "this is
+  // a warning"). The split mirrors the app's own logo: a brown roofline/
+  // structure with a green leaf sprouting out of it — green is growth/
+  // the primary action, brown is the grounded structure around it. Used
+  // deliberately, not scattered: SecondaryButton (every "other" action
+  // next to a green PrimaryButton), the bottom nav's Scan button (the one
+  // ACTION among four navigation destinations), and soil content
+  // specifically (plant_facts_screen's Soil section) — never plant-health
+  // signaling (StatusBadge's healthy/attention tones stay green/terracotta,
+  // so brand color never gets confused with a health status).
+  static const earth = Color(0xFF8C5A34); // warm soil brown
+  static const earthDark = Color(0xFF6B4326); // pressed state
+  static const earthTint = Color(0xFFEFE1D2); // soft warm tan — chip/selected backgrounds
+  static const earthTintOnDark = Color(0xFF3A2A1C);
+  // Brightened for the same reason primaryOnDark exists — raw `earth`
+  // against a near-black dark-mode surface tests too low-contrast to read
+  // as "selected"/"active", not just "there".
+  static const earthOnDark = Color(0xFFD9A876);
+
   // ---- Dark mode ----
   static const bgDark = Color(0xFF12160F);
   static const surfaceDark = Color(0xFF1C231C);
@@ -72,6 +93,9 @@ class AppColors {
 
   static (Color background, Color foreground) accentTintPairOf(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? (accentTintOnDark, accentOnDark) : (accentTint, accent);
+
+  static (Color background, Color foreground) earthTintPairOf(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? (earthTintOnDark, earthOnDark) : (earthTint, earth);
 
   // Brightness-aware resolvers for the base surface/text tokens — the
   // other half of the same fix: screens that hardcoded AppColors.surfaceLight/
@@ -208,11 +232,16 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       ),
     ),
+    // Was a neutral bordered button (borderLight/textLight) — every
+    // secondary action app-wide now reads as the app's second brand
+    // color instead of "primary button's plain, unstyled sibling". See
+    // AppColors.earth's own docstring for the green=action/brown=
+    // structure rule this follows.
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.textLight,
-        textStyle: AppTypography.button(AppColors.textLight),
-        side: const BorderSide(color: AppColors.borderLight, width: 1.3),
+        foregroundColor: AppColors.earth,
+        textStyle: AppTypography.button(AppColors.earth),
+        side: const BorderSide(color: AppColors.earth, width: 1.3),
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       ),
@@ -275,9 +304,9 @@ class AppTheme {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.textDark,
-        textStyle: AppTypography.button(AppColors.textDark),
-        side: const BorderSide(color: AppColors.borderDark, width: 1.3),
+        foregroundColor: AppColors.earthOnDark,
+        textStyle: AppTypography.button(AppColors.earthOnDark),
+        side: const BorderSide(color: AppColors.earthOnDark, width: 1.3),
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       ),

@@ -125,7 +125,16 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.primary : AppColors.textSecondaryOf(context);
+    // BUG this fixes ("visible but not appealing/distinguishable in dark
+    // mode"): this used the raw AppColors.primary constant for the
+    // selected icon, unconditionally — but primary is a deep forest green
+    // tuned for a light background, and (per app_theme.dart's own
+    // documented warning on primaryOnDark) tests at only ~1.4:1 contrast
+    // against the dark-mode pill behind it, i.e. almost invisible/muddy.
+    // The pill's own background already correctly went through
+    // primaryTintPairOf for exactly this reason; the icon color just
+    // wasn't reading from the same theme-aware pair.
+    final color = selected ? AppColors.primaryTintPairOf(context).$2 : AppColors.textSecondaryOf(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -209,7 +218,11 @@ class _ScanButton extends StatelessWidget {
                   children: [
                     const SizedBox(width: 22, height: 22),
                     const SizedBox(height: 3),
-                    Text('Scan', style: AppTypography.caption(AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
+                    // Matches the circle's own brown, not the other nav
+                    // items' green — same theme-aware contrast fix as
+                    // _NavItem's selected color, just reading from the
+                    // earth pair instead of the primary one.
+                    Text('Scan', style: AppTypography.caption(AppColors.earthTintPairOf(context).$2).copyWith(fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
@@ -218,13 +231,20 @@ class _ScanButton extends StatelessWidget {
                 left: 0,
                 right: 0,
                 child: Center(
+                  // Deliberately AppColors.earth, not primary — the one
+                  // ACTION among four navigation destinations gets the
+                  // app's second brand color, same rule as SecondaryButton
+                  // (see AppColors.earth's docstring). A solid fill with a
+                  // white icon reads fine in both themes without needing
+                  // a separate dark-mode variant, same as this circle
+                  // always did with primary before.
                   child: Container(
                     width: 58,
                     height: 58,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: AppColors.earth,
                       shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
+                      boxShadow: [BoxShadow(color: AppColors.earth.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
                     ),
                     child: const Icon(Icons.center_focus_strong, color: Colors.white, size: 26),
                   ),

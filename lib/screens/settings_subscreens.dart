@@ -269,6 +269,13 @@ class _GrowthMemoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // growthMemories.limit is PER PLANT (every plant gets its own N —
+    // see plans.py's GROWTH JOURNEY note), not a pool shared across the
+    // whole garden, so count/limit here is deliberately NOT shown as one
+    // fraction the way the other rows on this screen are — that would
+    // misstate the real per-plant cap. count is a garden-wide FYI total;
+    // limit is described as its own "per plant" fact. A specific plant's
+    // actual used/limit lives on its own Growth Journey screen instead.
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -279,7 +286,7 @@ class _GrowthMemoryRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.eco_outlined, size: 17, color: growthMemories.atLimit ? AppColors.accent : AppColors.primary),
+          const Icon(Icons.eco_outlined, size: 17, color: AppColors.primary),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -288,8 +295,8 @@ class _GrowthMemoryRow extends StatelessWidget {
                 const Text('Growth Journey', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                 Text(
                   growthMemories.isUnlimited
-                      ? '${growthMemories.count} memories saved — unlimited on your plan'
-                      : '${growthMemories.count} / ${growthMemories.limit} — a one-time growth memory on Green Thumb',
+                      ? 'Unlimited memories per plant — ${growthMemories.count} saved across your garden so far'
+                      : 'Up to ${growthMemories.limit} memories per plant — ${growthMemories.count} saved across your garden so far',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -307,12 +314,19 @@ class _GardenSetupRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Was "X of Y left" — the one row on this whole screen phrased as
+    // remaining instead of used, while AI Actions/Plant slots/Wishlist
+    // (and Growth Journey below) all read "used / limit". Matches that
+    // same shape now instead of making the reader flip their mental model
+    // for just this one card.
+    final used = gardenSetup.total - gardenSetup.remaining;
+    final atLimit = gardenSetup.remaining <= 0;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: AppColors.sageTintPairOf(context).$1, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
-          const Icon(Icons.auto_awesome, size: 17, color: AppColors.sage),
+          Icon(Icons.auto_awesome, size: 17, color: atLimit ? AppColors.accent : AppColors.sage),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -320,9 +334,9 @@ class _GardenSetupRow extends StatelessWidget {
               children: [
                 const Text('Garden setup', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                 Text(
-                  gardenSetup.remaining > 0
-                      ? '${gardenSetup.remaining} of ${gardenSetup.total} left — a one-time bonus for digitizing plants you already own'
-                      : 'Used all ${gardenSetup.total} — new identifications now draw from your regular weekly allowance',
+                  atLimit
+                      ? '$used / ${gardenSetup.total} used — new identifications now draw from your regular weekly allowance'
+                      : '$used / ${gardenSetup.total} used — a one-time bonus for digitizing plants you already own',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],

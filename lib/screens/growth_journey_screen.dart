@@ -377,9 +377,16 @@ class _GrowthJourneyScreenState extends State<GrowthJourneyScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              // growth.limit is per plant (see plans.py's
+                              // GROWTH JOURNEY note) — _memories.length is
+                              // THIS plant's own count, already loaded by
+                              // _load() above. growth.count itself is an
+                              // account-wide total now (the Plan screen's
+                              // "saved across your garden" line), not what
+                              // belongs in a single plant's own badge.
                               if (growth != null && !growth.isUnlimited)
                                 Text(
-                                  '${growth.count}/${growth.limit == 0 ? "0" : growth.limit}',
+                                  '${_memories.length}/${growth.limit == 0 ? "0" : growth.limit}',
                                   style: AppTypography.caption(AppColors.textSecondaryOf(context)),
                                 ),
                             ],

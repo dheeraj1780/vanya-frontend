@@ -22,6 +22,14 @@ class AppState extends ChangeNotifier {
   // else here (not a new dependency like sqflite/Hive), since it only
   // ever needs one whole-list read/write, never a query.
   static const _plantsCacheKey = 'plant_companion_cached_plants_v1';
+  // One-time discovery nudge for Growth Journey — see PlantDetailScreen's
+  // own docstring on why this one feature specifically earns a callout
+  // (buried inside a plant's detail screen, no other signal it exists)
+  // while the rest of the app deliberately doesn't get one. Per-device,
+  // not per-account — not cleared on sign-out, same reasoning as
+  // hasSeenIntro not being account-scoped: this is "has this install
+  // seen the feature exists", not something tied to who's signed in.
+  static const _growthJourneyNudgeKey = 'plant_companion_seen_growth_journey_nudge';
 
   final ApiClient api = ApiClient();
   late SharedPreferences _prefs;
@@ -57,6 +65,8 @@ class AppState extends ChangeNotifier {
   // closes (which persisting this to disk, the previous approach, never
   // did — that made it once-per-install, full stop).
   bool hasSeenIntro = false;
+  // Loaded from disk in bootstrap(); see markGrowthJourneyNudgeSeen().
+  bool hasSeenGrowthJourneyNudge = false;
   List<Plant> plants = [];
   // Distinguishes "still loading" from "genuinely has zero plants" — Home
   // and My Plants used to render the empty-garden prompt in BOTH cases
@@ -179,6 +189,7 @@ class AppState extends ChangeNotifier {
     // hasSeenIntro is NOT loaded from prefs — it stays at its in-memory
     // default (false) on every fresh process start, on purpose. See its
     // own docstring above.
+    hasSeenGrowthJourneyNudge = _prefs.getBool(_growthJourneyNudgeKey) ?? false;
 
     // BUG: userEmail was only ever set by a single synchronous read of
     // fb.FirebaseAuth.instance.currentUser?.email inside
@@ -251,6 +262,22 @@ class AppState extends ChangeNotifier {
       await _prefs.setString(_plantsCacheKey, jsonEncode(list.map((p) => p.toJson()).toList()));
     } catch (e) {
       debugPrint('Failed to cache plants (proceeding anyway): $e');
+    }
+  }
+
+  /// Called once, by PlantDetailScreen, the first time it's ever opened —
+  /// flips the flag (in memory immediately, on disk best-effort) so the
+  /// callout never shows again on any later visit, to this or any other
+  /// plant. Deliberately doesn't block on the disk write or retry it —
+  /// worst case on a rare write failure is the callout reappearing once
+  /// more next launch, never a crash or a stuck nudge.
+  Future<void> markGrowthJourneyNudgeSeen() async {
+    if (hasSeenGrowthJourneyNudge) return;
+    hasSeenGrowthJourneyNudge = true;
+    try {
+      await _prefs.setBool(_growthJourneyNudgeKey, true);
+    } catch (e) {
+      debugPrint('Failed to persist growth journey nudge seen (proceeding anyway): $e');
     }
   }
 

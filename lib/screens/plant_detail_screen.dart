@@ -31,11 +31,24 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   bool _removing = false;
   bool _savingNickname = false;
   bool _uploadingPhoto = false;
+  // Growth Journey is the app's most-praised, least-discoverable feature
+  // — a button inside a plant's detail screen, with no other signal
+  // anywhere that it exists. One-time callout, first visit only (see
+  // AppState.markGrowthJourneyNudgeSeen): captured into local state here
+  // rather than read live from appState on every build, so it stays
+  // visible for the rest of THIS screen instance even though marking it
+  // seen flips the underlying flag to true immediately.
+  bool _showGrowthNudge = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadLastDiagnosis());
+    final appState = context.read<AppState>();
+    if (!appState.hasSeenGrowthJourneyNudge) {
+      _showGrowthNudge = true;
+      unawaited(appState.markGrowthJourneyNudgeSeen());
+    }
   }
 
   Future<void> _loadLastDiagnosis() async {
@@ -315,6 +328,31 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                     onPressed: () => appState.goTo('diagnose', withReturnTo: 'plantDetail'),
                   ),
                   const SizedBox(height: 10),
+                  if (_showGrowthNudge)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(color: AppColors.sageTintPairOf(context).$1, borderRadius: BorderRadius.circular(AppRadius.md)),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.eco, size: 16, color: AppColors.sage),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'New here: Growth Journey turns dated photos into a growing vine, one memory at a time.',
+                                style: AppTypography.body(AppColors.textOf(context)),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() => _showGrowthNudge = false),
+                              child: Icon(Icons.close, size: 16, color: AppColors.textSecondaryOf(context)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   SecondaryButton(
                     label: 'Growth Journey',
                     icon: Icons.eco_outlined,

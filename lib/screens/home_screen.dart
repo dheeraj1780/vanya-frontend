@@ -276,8 +276,15 @@ class HomeScreen extends StatelessWidget {
             // instead of an image.
             Expanded(
               child: _QuickAction(
-                icon: Icons.edit_note_outlined,
-                label: 'I know it',
+                // Was edit_note_outlined ("I know it") — a notes icon and a
+                // label stating a *condition* ("you already know it")
+                // rather than the actual action, out of step with
+                // Diagnose/Calculators next to it, which both name what
+                // tapping them does. search + "Add by Name" reads as one
+                // more tool in the same row, and matches what the screen
+                // it opens actually asks for first.
+                icon: Icons.search,
+                label: 'Add by Name',
                 onTap: () => appState.goTo('manualAdd', withReturnTo: 'home'),
               ),
             ),

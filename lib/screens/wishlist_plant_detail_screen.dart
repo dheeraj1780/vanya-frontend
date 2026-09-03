@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/image_source_sheet.dart';
 import '../widgets/plant_image.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/status_badge.dart';
@@ -21,6 +24,36 @@ class WishlistPlantDetailScreen extends StatefulWidget {
 
 class _WishlistPlantDetailScreenState extends State<WishlistPlantDetailScreen> {
   bool _moving = false;
+  bool _uploadingPhoto = false;
+
+  /// Same gap as PlantDetailScreen's own _handleChangePhoto: a photo was
+  /// only ever set once, at identify/lookup time, with no way to add or
+  /// replace one afterward — including here, where a plant may have been
+  /// saved with no photo at all (a manual-add "I know it" save with the
+  /// optional photo step skipped). uploadPlantPhoto already existed and
+  /// works on a wishlist plant exactly like an active one (it's just a
+  /// plant id) — this is only the missing entry point into it.
+  Future<void> _handleChangePhoto(String plantId) async {
+    final appState = context.read<AppState>();
+    final file = await pickPlantImage(context);
+    if (file == null || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      final bytes = await File(file.path).readAsBytes();
+      final photoUrl = await appState.api.uploadPlantPhoto(appState.token!, plantId, base64Encode(bytes));
+      final plant = appState.growthJourneyPlant;
+      if (plant != null) appState.updatePlantLocally(plant.copyWith(photoUrl: photoUrl));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update the photo. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
 
   Future<void> _handleMoveToGarden(AppState appState, String plantId) async {
     setState(() => _moving = true);
@@ -58,9 +91,31 @@ class _WishlistPlantDetailScreenState extends State<WishlistPlantDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              child: AspectRatio(aspectRatio: 1.15, child: PlantImage(url: plant.photoUrl, borderRadius: 0)),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: AspectRatio(aspectRatio: 1.15, child: PlantImage(url: plant.photoUrl, borderRadius: 0)),
+                ),
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: GestureDetector(
+                    onTap: _uploadingPhoto ? null : () => _handleChangePhoto(plant.id),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.35), shape: BoxShape.circle),
+                      child: _uploadingPhoto
+                          ? const Padding(
+                              padding: EdgeInsets.all(9),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 18),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
             Text(plant.nickname, style: AppTypography.h1(AppColors.textOf(context))),

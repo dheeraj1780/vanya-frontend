@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +8,7 @@ import '../app_state.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/care_guide_section.dart';
+import '../widgets/image_source_sheet.dart';
 import '../widgets/leaf_burst.dart';
 import '../widgets/plant_image.dart';
 import '../widgets/primary_button.dart';
@@ -27,6 +30,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   DiagnosisResult? _lastDiagnosis;
   bool _removing = false;
   bool _savingNickname = false;
+  bool _uploadingPhoto = false;
 
   @override
   void initState() {
@@ -100,6 +104,33 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     }
   }
 
+  /// Was only ever set once, at scan/lookup time (reusing the identify
+  /// photo, or whatever was optionally added on the manual-add result
+  /// screen) — no way to add one later, or replace a bad shot, once the
+  /// plant already existed. uploadPlantPhoto itself already existed and
+  /// was already used at creation time; this is just the missing second
+  /// entry point into it.
+  Future<void> _handleChangePhoto(Plant plant) async {
+    final appState = context.read<AppState>();
+    final file = await pickPlantImage(context);
+    if (file == null || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      final bytes = await File(file.path).readAsBytes();
+      final photoUrl = await appState.api.uploadPlantPhoto(appState.token!, plant.id, base64Encode(bytes));
+      appState.updatePlantLocally(plant.copyWith(photoUrl: photoUrl));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update the photo. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
   Future<void> _confirmDelete(Plant plant) async {
     final appState = context.read<AppState>();
     final confirmed = await showDialog<bool>(
@@ -153,6 +184,13 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
             backgroundColor: AppColors.bgOf(context),
             surfaceTintColor: Colors.transparent,
             leading: _CircleIconButton(icon: Icons.arrow_back, onTap: () => appState.goBack(fallback: 'home')),
+            actions: [
+              _CircleIconButton(
+                icon: Icons.camera_alt_outlined,
+                loading: _uploadingPhoto,
+                onTap: () => _handleChangePhoto(plant),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: GestureDetector(
                 // Tap the hero photo to view it full-screen over a blurred
@@ -404,19 +442,25 @@ class _FullScreenPlantImage extends StatelessWidget {
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const _CircleIconButton({required this.icon, required this.onTap});
+  final bool loading;
+  const _CircleIconButton({required this.icon, required this.onTap, this.loading = false});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(10),
       child: GestureDetector(
-        onTap: onTap,
+        onTap: loading ? null : onTap,
         child: Container(
           width: 36,
           height: 36,
           decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.35), shape: BoxShape.circle),
-          child: Icon(icon, color: Colors.white, size: 18),
+          child: loading
+              ? const Padding(
+                  padding: EdgeInsets.all(9),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : Icon(icon, color: Colors.white, size: 18),
         ),
       ),
     );

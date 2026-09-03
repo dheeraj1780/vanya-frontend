@@ -302,12 +302,10 @@ class _PlanCard extends StatelessWidget {
             // Calculator, and diagnose all draw from the same shared
             // weekly pool now (see plans.dart's aiActions note), spend it
             // however you want instead of being capped in each dimension
-            // separately. Names diagnose's 2x cost explicitly, not just in
-            // a code comment — a real user did the math on their own
-            // usage (1 identify + 1 diagnose + 1 calculator) and got a
-            // different total than the app showed, with nothing anywhere
-            // explaining why.
-            _Feature(text: '${plan.aiActions.humanReadable('AI action', 'AI actions')} — identify or Care Calculator (1 each), diagnose (2, since it reviews two photos)'),
+            // separately. All three cost the same (1 each — see
+            // kDiagnoseActionCost's docstring), so no per-action
+            // breakdown is needed here any more.
+            _Feature(text: '${plan.aiActions.humanReadable('AI action', 'AI actions')} — identify, diagnose, or run the Care Calculator'),
             if (plan.gardenSetupIdentifications > 0)
               _Feature(text: '${plan.gardenSetupIdentifications} bonus identifications to set up your garden'),
             if (plan.growthMemoryLimit != 0)

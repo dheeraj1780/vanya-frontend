@@ -13,12 +13,14 @@
 /// always the source of truth for what's actually allowed.
 library;
 
-// Mirrors plans.py's DIAGNOSE_ACTION_COST — diagnose draws 2 from the
-// shared aiActions pool per call (it sends two photos, roughly double a
-// single-photo identify/calculator call); identify and calculator each
-// draw 1. Display/proactive-UX use only, same as the rest of this file —
-// the real cost is enforced server-side.
-const int kDiagnoseActionCost = 2;
+// Mirrors plans.py's DIAGNOSE_ACTION_COST — was 2 ("two photos, roughly
+// double a single-photo call"), priced out against real Gemini rates and
+// found to cost about the same as identify, not double, so evened out to
+// 1 like identify/calculator. Kept as a named constant rather than
+// inlined since diagnose_screen.dart's pre-check reads it explicitly.
+// Display/proactive-UX use only, same as the rest of this file — the
+// real cost is enforced server-side.
+const int kDiagnoseActionCost = 1;
 
 class FeatureAllowance {
   final int limit; // -1 = unlimited
@@ -87,7 +89,7 @@ const Map<String, PlanConfig> kPlans = {
     maxPlants: 3,
     wishlistLimit: 3,
     gardenSetupIdentifications: 0,
-    aiActions: FeatureAllowance(6, 'lifetime'),
+    aiActions: FeatureAllowance(8, 'lifetime'),
     growthMemoryLimit: 0,
   ),
   'plantie': PlanConfig(
@@ -100,7 +102,7 @@ const Map<String, PlanConfig> kPlans = {
     maxPlants: 5,
     wishlistLimit: 5,
     gardenSetupIdentifications: 0,
-    aiActions: FeatureAllowance(6, 'weekly'),
+    aiActions: FeatureAllowance(10, 'weekly'),
     growthMemoryLimit: 0,
   ),
   'green_thumb': PlanConfig(
@@ -113,7 +115,7 @@ const Map<String, PlanConfig> kPlans = {
     maxPlants: 10,
     wishlistLimit: 20,
     gardenSetupIdentifications: 10,
-    aiActions: FeatureAllowance(15, 'weekly'),
+    aiActions: FeatureAllowance(25, 'weekly'),
     growthMemoryLimit: 4,
     productId: 'vanya_green_thumb_monthly',
   ),
@@ -127,7 +129,7 @@ const Map<String, PlanConfig> kPlans = {
     maxPlants: 25,
     wishlistLimit: 50,
     gardenSetupIdentifications: 25,
-    aiActions: FeatureAllowance(35, 'weekly'),
+    aiActions: FeatureAllowance(60, 'weekly'),
     growthMemoryLimit: -1,
     productId: 'vanya_photosynthesis_phd_monthly',
   ),

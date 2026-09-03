@@ -312,13 +312,28 @@ class _QuickAction extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
+        // BUG this fixes (reported on a Samsung S23 FE, but really any
+        // narrow-enough screen): "Calculators" split mid-word into
+        // "Calculator"/"s" across two lines. These tiles used to be
+        // ~50% width (two of them); adding a third Quick Action this
+        // session narrowed each to ~33% without rechecking the longest
+        // label still fit at the old font size/padding — Flutter only
+        // hard-breaks a single word like this when it genuinely has no
+        // room left, so the real fix is reclaiming that room: less
+        // horizontal padding, a smaller label size.
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
         decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadius.md)),
         child: Column(
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(height: 8),
-            Text(label, style: AppTypography.bodyStrong(AppColors.textOf(context))),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.bodyStrong(AppColors.textOf(context)).copyWith(fontSize: 12),
+            ),
           ],
         ),
       ),

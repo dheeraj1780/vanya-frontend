@@ -341,7 +341,16 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'New here: Growth Journey turns dated photos into a growing vine, one memory at a time.',
+                                // Was "turns dated photos into a growing
+                                // vine, one memory at a time" — a
+                                // metaphor that only makes sense once
+                                // you've already seen the vine, which is
+                                // exactly what this callout exists to get
+                                // someone to do first. Plain, concrete
+                                // words instead: what it is (a photo
+                                // diary — no explanation needed), what to
+                                // do (tap below), why (watch it grow).
+                                'Tap below to start a photo diary for this plant — add a picture now and another later, and watch it grow over time.',
                                 style: AppTypography.body(AppColors.textOf(context)),
                               ),
                             ),

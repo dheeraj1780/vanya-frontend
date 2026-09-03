@@ -17,6 +17,17 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  // Sampled directly from assets/videos/vanya_intro.mp4 itself (every
+  // corner, across its full ~6s duration, via ffmpeg frame extraction —
+  // consistently #FDFDFD/#FCFCFC/#FFFFFF, i.e. this exact near-white,
+  // not the app's own dark-green brand color). BoxFit.contain below
+  // always leaves letterbox bars in portrait (the video is landscape,
+  // ~16:9) — filling them with the video's OWN background instead of
+  // AppColors.primaryDark is what makes it read as full-bleed instead of
+  // a dark bar clamped onto a white clip. Re-sample this if the video
+  // asset is ever replaced with one that has a different background.
+  static const _videoBg = Color(0xFFFDFDFD);
+
   VideoPlayerController? _controller;
   bool _videoFailed = false;
   bool _done = false;
@@ -77,7 +88,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final ready = controller != null && controller.value.isInitialized;
 
     return Scaffold(
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: _videoBg,
       body: Stack(
         fit: StackFit.expand,
         children: [

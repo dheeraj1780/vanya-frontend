@@ -296,6 +296,14 @@ class _ManualAddScreenState extends State<ManualAddScreen> {
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(hintText: 'e.g. Money Plant, Snake Plant, Tulsi'),
           onSubmitted: (_) => _handleLookup(),
+          // BUG this fixes (reported: "Look it up" stayed greyed out and
+          // did nothing no matter what was typed): the button's onPressed
+          // below reads _nameController.text at build time, but nothing
+          // was wired to rebuild this screen as that text changed — so it
+          // stayed evaluated against the initial empty string forever.
+          // Exact same bug as growth_journey_screen.dart's "New growth
+          // memory" save button; same fix.
+          onChanged: (_) => setState(() {}),
         ),
         if (_errorMessage.isNotEmpty)
           Padding(

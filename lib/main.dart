@@ -106,7 +106,7 @@ class _PlantCompanionAppState extends State<PlantCompanionApp> with WidgetsBindi
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'VANYA',
+      title: 'Vanya',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

@@ -69,8 +69,8 @@ class WidgetService {
   /// session's (now-inaccessible) plant data visible on the home screen.
   static Future<void> clear() async {
     try {
-      await HomeWidget.saveWidgetData<String>('plant_name', 'VANYA');
-      await HomeWidget.saveWidgetData<String>('plant_status', 'Open VANYA to sign in');
+      await HomeWidget.saveWidgetData<String>('plant_name', 'Vanya');
+      await HomeWidget.saveWidgetData<String>('plant_status', 'Open Vanya to sign in');
       await HomeWidget.saveWidgetData<String>('garden_health', 'empty');
       await HomeWidget.updateWidget(androidName: _androidWidgetName);
     } catch (e) {

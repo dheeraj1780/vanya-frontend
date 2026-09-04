@@ -149,7 +149,7 @@ class _LetterFallbackSplash extends StatefulWidget {
 }
 
 class _LetterFallbackSplashState extends State<_LetterFallbackSplash> with TickerProviderStateMixin {
-  static const _word = 'VANYA';
+  static const _word = 'Vanya';
 
   late final AnimationController _backgroundController;
   late final AnimationController _lettersController;

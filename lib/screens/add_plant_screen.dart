@@ -385,6 +385,17 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
             const SizedBox(height: 2),
             Text(result.species, style: AppTypography.body(AppColors.textSecondaryOf(context)).copyWith(fontStyle: FontStyle.italic)),
           ],
+          // Shown here now, not just after saving (PlantDetailScreen/
+          // PlantFactsScreen already had this) — reported: the AI's
+          // common_name alone isn't always the name someone actually
+          // knows a plant by (regional/household names vary a lot), so
+          // without this line there was no way to confirm right here
+          // that an unfamiliar-sounding result is genuinely the plant
+          // they think it is, before committing to save it.
+          if (result.regionalNames.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text('Also known as ${result.regionalNames.join(', ')}', style: AppTypography.body(AppColors.textSecondaryOf(context))),
+          ],
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,

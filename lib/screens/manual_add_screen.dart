@@ -375,6 +375,13 @@ class _ManualAddScreenState extends State<ManualAddScreen> {
             const SizedBox(height: 2),
             Text(result.species, style: AppTypography.body(AppColors.textSecondaryOf(context)).copyWith(fontStyle: FontStyle.italic)),
           ],
+          // Same fix as AddPlantScreen's own result step, for the same
+          // reason: confirms right here that an unfamiliar common_name
+          // is genuinely the plant being looked up, before saving it.
+          if (result.regionalNames.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text('Also known as ${result.regionalNames.join(', ')}', style: AppTypography.body(AppColors.textSecondaryOf(context))),
+          ],
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,

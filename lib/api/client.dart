@@ -20,12 +20,16 @@ class ApiException implements Exception {
 class ApiClient {
   // Same env-driven base URL pattern as VITE_API_BASE_URL — set via
   // --dart-define=API_BASE_URL=... at build time, defaulting to the real
-  // deployed Render backend so a plain `flutter run`/release build works
-  // without any local server or tunnel. Override for local dev against a
+  // deployed backend so a plain `flutter run`/release build works without
+  // any local server or tunnel. Override for local dev against a
   // laptop-hosted backend (e.g. via ngrok) with --dart-define=API_BASE_URL=...
+  //
+  // Was the Render free-tier URL (cold-starts, 30-day-expiring free
+  // Postgres) — now a self-hosted DigitalOcean droplet in Bangalore,
+  // real Postgres with nightly R2 backups, real HTTPS via Let's Encrypt.
   static const String _baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://vanya-backend-64ja.onrender.com/v1',
+    defaultValue: 'https://vanya-plantcare-api.duckdns.org/v1',
   );
 
   /// Fires whenever an authenticated request comes back 401/UNAUTHORIZED —

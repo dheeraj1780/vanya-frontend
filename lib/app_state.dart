@@ -387,6 +387,14 @@ class AppState extends ChangeNotifier {
     if (token == null) return;
     const maxAttempts = 3;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      // Re-checked every iteration, not just once before the loop: the
+      // delay between retries is a real window for a concurrent
+      // _handleSessionExpired() to null out token out from under this
+      // loop (a stale/invalid token failing attempt 1 is exactly what
+      // triggers that) -- without this, the next attempt's token! below
+      // throws "Null check operator used on a null value" instead of
+      // just stopping, since there's no session left worth retrying for.
+      if (token == null) return;
       try {
         plants = await api.listPlants(
           token!,
@@ -502,6 +510,10 @@ class AppState extends ChangeNotifier {
     if (token == null) return;
     const maxAttempts = 3;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      // Same race as refreshPlants' own loop -- re-check every iteration,
+      // since a concurrent sign-out during the retry delay can null the
+      // token out from under this exact loop.
+      if (token == null) return;
       try {
         entitlement = await api.getEntitlement(token!);
         notifyListeners();

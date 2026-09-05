@@ -625,9 +625,9 @@ class _VineView extends StatelessWidget {
 /// The share card itself — deliberately its own composition, not a
 /// screenshot of the vine screen (which is a scrolling, interactive view
 /// with edit affordances that make no sense in a shared image). Reuses
-/// the same background preset and decorative type treatment
-/// (unifrakturMaguntia) as the rest of Growth Journey so a shared card
-/// reads as unmistakably "from VANYA" rather than a generic template.
+/// the same background preset and the app's own display face (Bricolage
+/// Grotesque) as the rest of Growth Journey so a shared card reads as
+/// unmistakably "from Vanya" rather than a generic template.
 /// Built at a fixed 1080x1920 logical size (a standard portrait share
 /// ratio, native to Instagram/WhatsApp Stories and safe letterboxed
 /// anywhere else) — see _handleShare's docstring for how this gets
@@ -714,7 +714,12 @@ class _GrowthShareCard extends StatelessWidget {
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.unifrakturMaguntia(fontSize: 76, color: Colors.white, height: 1.15),
+                        // Was the decorative blackletter font
+                        // (unifrakturMaguntia) as a one-off flourish —
+                        // now the same display face as the rest of the
+                        // app, for genuinely uniform typography with no
+                        // exceptions.
+                        style: GoogleFonts.bricolageGrotesque(fontSize: 76, fontWeight: FontWeight.w700, color: Colors.white, height: 1.15),
                       ),
                       if (plant.species != null && plant.species!.isNotEmpty) ...[
                         const SizedBox(height: 10),
@@ -881,7 +886,7 @@ class _MemoryDetailCard extends StatelessWidget {
                   children: [
                     Text(
                       memory.name,
-                      style: GoogleFonts.unifrakturMaguntia(fontSize: 28, color: AppColors.primaryTintPairOf(context).$2, height: 1.2),
+                      style: GoogleFonts.bricolageGrotesque(fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.primaryTintPairOf(context).$2, height: 1.2),
                     ),
                     const SizedBox(height: 4),
                     Text(_formatDate(memory.createdAt), style: AppTypography.eyebrow(AppColors.sage)),

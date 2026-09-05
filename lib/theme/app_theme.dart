@@ -165,44 +165,54 @@ class AppSpacing {
   static const xl = 32.0;
 }
 
-/// Typography hierarchy — a serif (Fraunces) for display/heading moments
-/// (page titles, plant names) reading as editorial/premium rather than a
-/// default mobile app, paired with a clean grotesque (Inter) for body/UI
-/// text so long-form care info stays easy to scan.
+/// Typography hierarchy — Bricolage Grotesque for display/heading moments
+/// (page titles, plant names), paired with Figtree for body/UI text.
+/// Chosen together, deliberately, as a production font pass: the previous
+/// pairing (Fraunces + Inter) wasn't wrong, but a warm literary serif
+/// plus the single most common "safe" UI sans reads as generic-editorial
+/// rather than distinctly itself — and Inter specifically is one of the
+/// two faces (with Space Grotesk) that shows up so often in AI-assisted
+/// design that it's become a tell on its own. Bricolage is the one
+/// genuinely un-serif display option in that pass — contemporary and a
+/// little quirky without tipping into illegible — and Figtree carries
+/// that same modern energy down into UI sizes while staying easy to
+/// scan for actual care instructions, which a display face alone can't
+/// promise. Field names kept typeface-neutral (not "_serifBase") since
+/// the display face isn't a serif any more.
 class AppTypography {
-  static TextStyle get _serifBase => GoogleFonts.fraunces();
-  static TextStyle get _sansBase => GoogleFonts.inter();
+  static TextStyle get _displayBase => GoogleFonts.bricolageGrotesque();
+  static TextStyle get _bodyBase => GoogleFonts.figtree();
 
   /// Big, bold — welcome/onboarding moments and hero page titles.
   static TextStyle display(Color color) =>
-      _serifBase.copyWith(fontSize: 34, fontWeight: FontWeight.w600, color: color, height: 1.08, letterSpacing: -0.4);
+      _displayBase.copyWith(fontSize: 34, fontWeight: FontWeight.w600, color: color, height: 1.08, letterSpacing: -0.4);
 
   /// Page-level heading (screen titles, plant name on Plant Detail).
   static TextStyle h1(Color color) =>
-      _serifBase.copyWith(fontSize: 26, fontWeight: FontWeight.w600, color: color, height: 1.15, letterSpacing: -0.2);
+      _displayBase.copyWith(fontSize: 26, fontWeight: FontWeight.w600, color: color, height: 1.15, letterSpacing: -0.2);
 
   /// Section heading ("Today's care", "Watering").
   static TextStyle h2(Color color) =>
-      _serifBase.copyWith(fontSize: 19, fontWeight: FontWeight.w600, color: color, height: 1.2);
+      _displayBase.copyWith(fontSize: 19, fontWeight: FontWeight.w600, color: color, height: 1.2);
 
   /// Card title (plant nickname on a PlantCard).
   static TextStyle h3(Color color) =>
-      _sansBase.copyWith(fontSize: 15.5, fontWeight: FontWeight.w700, color: color, height: 1.25);
+      _bodyBase.copyWith(fontSize: 15.5, fontWeight: FontWeight.w700, color: color, height: 1.25);
 
-  static TextStyle bodyLarge(Color color) => _sansBase.copyWith(fontSize: 15, fontWeight: FontWeight.w400, color: color, height: 1.5);
+  static TextStyle bodyLarge(Color color) => _bodyBase.copyWith(fontSize: 15, fontWeight: FontWeight.w400, color: color, height: 1.5);
 
-  static TextStyle body(Color color) => _sansBase.copyWith(fontSize: 13, fontWeight: FontWeight.w400, color: color, height: 1.5);
+  static TextStyle body(Color color) => _bodyBase.copyWith(fontSize: 13, fontWeight: FontWeight.w400, color: color, height: 1.5);
 
-  static TextStyle bodyStrong(Color color) => _sansBase.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: color, height: 1.4);
+  static TextStyle bodyStrong(Color color) => _bodyBase.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: color, height: 1.4);
 
   static TextStyle caption(Color color) =>
-      _sansBase.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: color, height: 1.3, letterSpacing: 0.3);
+      _bodyBase.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: color, height: 1.3, letterSpacing: 0.3);
 
   /// All-caps eyebrow/section label ("MY PLANTS", "WATERING").
   static TextStyle eyebrow(Color color) =>
-      _sansBase.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: color, height: 1.2, letterSpacing: 0.8);
+      _bodyBase.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: color, height: 1.2, letterSpacing: 0.8);
 
-  static TextStyle button(Color color) => _sansBase.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600, color: color, height: 1.2);
+  static TextStyle button(Color color) => _bodyBase.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600, color: color, height: 1.2);
 }
 
 class AppTheme {
@@ -210,7 +220,7 @@ class AppTheme {
     useMaterial3: true,
     brightness: Brightness.light,
     scaffoldBackgroundColor: AppColors.bgLight,
-    fontFamily: GoogleFonts.inter().fontFamily,
+    fontFamily: GoogleFonts.figtree().fontFamily,
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
       secondary: AppColors.accent,
@@ -280,7 +290,7 @@ class AppTheme {
     useMaterial3: true,
     brightness: Brightness.dark,
     scaffoldBackgroundColor: AppColors.bgDark,
-    fontFamily: GoogleFonts.inter().fontFamily,
+    fontFamily: GoogleFonts.figtree().fontFamily,
     colorScheme: const ColorScheme.dark(
       primary: AppColors.sage,
       secondary: AppColors.accent,

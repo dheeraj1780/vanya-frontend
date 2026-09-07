@@ -87,16 +87,20 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
       // a different account after "already registered") silently reused
       // the same account, with no picker shown at all.
       try {
-        await GoogleSignIn().signOut();
-        await GoogleSignIn().disconnect();
+        await GoogleSignIn.instance.signOut();
+        await GoogleSignIn.instance.disconnect();
       } catch (_) {
         // Nothing to sign out of yet (first attempt this session) — fine.
       }
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return; // cancelled the picker — `finally` below still resets _linking
-      final googleAuth = await googleUser.authentication;
-      final credential = fb.GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
+      // authenticate() replaces the old signIn() -- throws instead of
+      // returning null on cancellation (see the GoogleSignInException
+      // catch below), and only carries an idToken now, no accessToken.
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final credential = fb.GoogleAuthProvider.credential(idToken: googleUser.authentication.idToken);
       await _completeLink(credential);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return; // cancelled the picker — `finally` below still resets _linking
+      setState(() => _errorMessage = 'Could not sign in with Google.');
     } on ApiException catch (err) {
       // err.message is always safe to show verbatim. Previously this
       // checked e.toString().contains('IDENTITY_ALREADY_LINKED') to

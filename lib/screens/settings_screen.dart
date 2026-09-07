@@ -234,18 +234,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // a different account after "already registered") silently reused
       // the same account, with no picker shown at all.
       try {
-        await GoogleSignIn().signOut();
-        await GoogleSignIn().disconnect();
+        await GoogleSignIn.instance.signOut();
+        await GoogleSignIn.instance.disconnect();
       } catch (_) {
         // Nothing to sign out of yet (first attempt this session) — fine.
       }
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
+      // authenticate() replaces the old signIn() -- throws instead of
+      // returning null on cancellation (see the GoogleSignInException
+      // catch below), and only carries an idToken now, no accessToken.
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      await _completeLink(fb.GoogleAuthProvider.credential(idToken: googleUser.authentication.idToken));
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
         setState(() => _linking = false);
         return;
       }
-      final googleAuth = await googleUser.authentication;
-      await _completeLink(fb.GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken));
+      setState(() => _linkError = 'Could not link Google account.');
     } on ApiException catch (err) {
       // err.message is always safe to show verbatim (see sign_in_screen's
       // equivalent handling) — this is what was actually hiding the real

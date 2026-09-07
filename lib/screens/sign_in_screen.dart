@@ -87,18 +87,25 @@ class _SignInScreenState extends State<SignInScreen> {
       _errorMessage = '';
     });
     try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
+      // authenticate() replaces the old signIn() -- it throws instead of
+      // returning null on cancellation (see the GoogleSignInException
+      // catch below), and the account it returns no longer carries an
+      // accessToken, only the idToken Firebase actually needs. See
+      // AppState.bootstrap's GoogleSignIn.instance.initialize() call for
+      // why this API (not the old legacy one) is what's in use now.
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final credential = fb.GoogleAuthProvider.credential(idToken: googleUser.authentication.idToken);
+      await _completeFirebaseSignIn(credential);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
         // User cancelled the native picker — not an error.
         setState(() => _status = 'idle');
         return;
       }
-      final googleAuth = await googleUser.authentication;
-      final credential = fb.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      await _completeFirebaseSignIn(credential);
+      setState(() {
+        _status = 'error';
+        _errorMessage = 'Could not sign in with Google.';
+      });
     } on ApiException catch (err) {
       // ApiException.message is always safe to show verbatim — see
       // InternalServerError in the backend's core/exceptions.py, which
@@ -108,10 +115,10 @@ class _SignInScreenState extends State<SignInScreen> {
         _errorMessage = err.message;
       });
     } catch (e) {
-      // Anything else here is a Firebase/Google SDK exception, not ours —
-      // its .toString() previously got shown to the user directly, which
-      // is exactly the kind of raw-error leak this screen shouldn't do
-      // (see the equivalent fix in guest_gate_screen.dart's _handleGoogle).
+      // Anything else here is a Firebase SDK exception, not ours — its
+      // .toString() previously got shown to the user directly, which is
+      // exactly the kind of raw-error leak this screen shouldn't do (see
+      // the equivalent fix in guest_gate_screen.dart's _handleGoogle).
       setState(() {
         _status = 'error';
         _errorMessage = 'Could not sign in with Google.';

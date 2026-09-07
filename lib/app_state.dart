@@ -198,6 +198,22 @@ class AppState extends ChangeNotifier {
   /// session already exists (returning user), skip onboarding entirely.
   Future<void> bootstrap() async {
     api.onSessionExpired = _handleSessionExpired;
+    // google_sign_in 7's GoogleSignIn is a singleton that requires this
+    // exactly once, awaited, before any other method on it is called
+    // anywhere in the app — see every _handleGoogle/_linkGoogle below,
+    // all of which now assume this has already happened. serverClientId
+    // is the Firebase project's own Web client (google-services.json,
+    // client_type 3) — needed so the idToken this mints is one Firebase's
+    // signInWithCredential can actually verify. Migrated off the old
+    // GoogleSignIn().signIn() legacy API (Credential Manager-based now)
+    // after Google Play Services auth started rejecting the legacy path
+    // with "Failed to record the consent" — confirmed via live logcat on
+    // a real device, not a guess; see the session notes for the full
+    // diagnosis. Google has publicly deprecated the legacy path this
+    // package used to use, so this isn't optional going forward.
+    await GoogleSignIn.instance.initialize(
+      serverClientId: '548708201155-khf06pnuf2dhggt7mgveubkv69pamahn.apps.googleusercontent.com',
+    );
     _prefs = await SharedPreferences.getInstance();
     token = _prefs.getString(_sessionKey);
     isGuest = _prefs.getBool(_isGuestKey) ?? false;
@@ -680,7 +696,7 @@ class AppState extends ChangeNotifier {
       debugPrint('Firebase sign-out failed (proceeding anyway): $e');
     }
     try {
-      await GoogleSignIn().signOut();
+      await GoogleSignIn.instance.signOut();
     } catch (e) {
       debugPrint('Google sign-out failed (proceeding anyway): $e');
     }
@@ -694,7 +710,7 @@ class AppState extends ChangeNotifier {
     // session to revoke (e.g. a guest or Apple-only user) — safe to ignore,
     // same tolerance as signOut() above.
     try {
-      await GoogleSignIn().disconnect();
+      await GoogleSignIn.instance.disconnect();
     } catch (e) {
       debugPrint('Google disconnect failed (proceeding anyway): $e');
     }

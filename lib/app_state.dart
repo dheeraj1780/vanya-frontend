@@ -90,17 +90,32 @@ class AppState extends ChangeNotifier {
   // every screen that shows it needs to handle that gracefully.
   String? userName;
 
-  // The signed-in email — read straight from Firebase's own currentUser
-  // (see loadReminderPreference), not round-tripped through our backend,
-  // since Firebase already has it locally the instant a session exists.
-  // null for a guest (no identity at all) or before the first
-  // loadReminderPreference() call completes. Shown read-only in Settings
-  // (unlike userName, there's no "edit" concept — it comes from whichever
-  // Google/Apple identity is signed in) and passed as a login_hint when
-  // opening the website's Checkout if the handoff-token mint fails (see
-  // PaywallScreen._openWebsite) — the same "avoid the wrong Google
-  // account being picked" problem the handoff token exists for, just a
-  // best-effort fallback for when that token can't be minted at all.
+  // The signed-in email — sourced from OUR backend (see
+  // loadReminderPreference), captured once at account creation from the
+  // verified Firebase identity. null for a guest (no identity at all) or
+  // before the first loadReminderPreference() call completes. Shown
+  // read-only in Settings (unlike userName, there's no "edit" concept — it
+  // comes from whichever Google/Apple identity is signed in) and passed as
+  // a login_hint when opening the website's Checkout if the handoff-token
+  // mint fails (see PaywallScreen._openWebsite) — the same "avoid the
+  // wrong Google account being picked" problem the handoff token exists
+  // for, just a best-effort fallback for when that token can't be minted
+  // at all.
+  //
+  // BUG (reported live, post-launch): this used to be read straight from
+  // Firebase Auth's own authStateChanges() stream instead, on the theory
+  // that "Firebase already has it locally the instant a session exists".
+  // That fixed an earlier cold-start race (see git history) but introduced
+  // a worse one: Firebase's own local ID token/session can hiccup a
+  // silent refresh well into an otherwise-normal session (network blip,
+  // Play Services quirk) and the stream emits a transient null when that
+  // happens — even though this app's own backend session token (a
+  // completely separate, longer-lived credential) is still perfectly
+  // valid and every other screen keeps working fine. The user only ever
+  // saw "Settings' Email row is empty" with no other symptom, and it only
+  // came back after a full sign-out/sign-in because nothing else ever
+  // re-populated it. Sourcing it from our own backend instead makes it
+  // exactly as stable as userName above, which never had this problem.
   String? userEmail;
 
   // Smart Filters — applied server-side via GET /plants query params
@@ -190,22 +205,6 @@ class AppState extends ChangeNotifier {
     // default (false) on every fresh process start, on purpose. See its
     // own docstring above.
     hasSeenGrowthJourneyNudge = _prefs.getBool(_growthJourneyNudgeKey) ?? false;
-
-    // BUG: userEmail was only ever set by a single synchronous read of
-    // fb.FirebaseAuth.instance.currentUser?.email inside
-    // loadReminderPreference() — on a cold start, Firebase Auth restores
-    // its persisted session ASYNCHRONOUSLY, so that read could easily run
-    // before restoration finished and see null even though the user was
-    // genuinely signed in, permanently leaving Settings' Email row hidden
-    // for that whole app session (nothing else ever re-checked it).
-    // authStateChanges() emits the current state as soon as it's actually
-    // known (immediately if already restored, or the moment restoration
-    // completes if not) and keeps emitting on every future sign-in/out/
-    // link, so this can't miss it the way a one-off read could.
-    fb.FirebaseAuth.instance.authStateChanges().listen((user) {
-      userEmail = user?.email;
-      notifyListeners();
-    });
 
     if (token != null) {
       screen = 'home';
@@ -451,9 +450,7 @@ class AppState extends ChangeNotifier {
       final data = await api.getPreferences(token!);
       remindersEnabled = data['reminders_enabled'];
       userName = data['name'];
-      // userEmail is no longer set here -- bootstrap()'s authStateChanges
-      // listener owns it now (see that comment for why the one-off read
-      // this used to do was unreliable on a cold start).
+      userEmail = data['email'];
       notifyListeners();
       if (remindersEnabled) {
         await NotificationService.instance.scheduleAll(plants);

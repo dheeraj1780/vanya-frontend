@@ -41,7 +41,13 @@ class _SignInScreenState extends State<SignInScreen> {
   /// as the web version's signInWithPopup + getIdToken(), just reached via
   /// native SDKs instead of a browser popup.
   Future<void> _completeFirebaseSignIn(fb.AuthCredential credential) async {
+    // TEMP DIAGNOSTIC: pinpoints which stage a silent "nothing happens, no
+    // error" hang is actually stuck at (Firebase's own signInWithCredential
+    // vs our backend's /auth/signin) -- remove once the v7 migration is
+    // confirmed stable. See the matching log in _handleGoogle.
+    debugPrint('Google sign-in: got idToken, calling Firebase signInWithCredential...');
     final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
+    debugPrint('Google sign-in: Firebase signInWithCredential succeeded, uid=${userCredential.user?.uid}');
     // BUG (reported: a brand-new Google account's name wasn't getting
     // auto-captured): for a JUST-created account, the ID token minted as
     // part of this very sign-in call can lag one beat behind the user
@@ -54,8 +60,10 @@ class _SignInScreenState extends State<SignInScreen> {
     // before we ever send it to our backend.
     await userCredential.user!.reload();
     final identityToken = await userCredential.user!.getIdToken(true);
+    debugPrint('Google sign-in: got fresh Firebase ID token, calling our backend...');
     if (!mounted) return;
     await _completeSignIn('firebase', identityToken: identityToken);
+    debugPrint('Google sign-in: backend sign-in completed.');
   }
 
   /// Shared by every sign-in path — calls POST /auth/signin, and if the
@@ -93,10 +101,20 @@ class _SignInScreenState extends State<SignInScreen> {
       // accessToken, only the idToken Firebase actually needs. See
       // AppState.bootstrap's GoogleSignIn.instance.initialize() call for
       // why this API (not the old legacy one) is what's in use now.
+      debugPrint('Google sign-in: calling GoogleSignIn.instance.authenticate()...');
       final googleUser = await GoogleSignIn.instance.authenticate();
+      debugPrint('Google sign-in: authenticate() returned account=${googleUser.email}');
       final credential = fb.GoogleAuthProvider.credential(idToken: googleUser.authentication.idToken);
       await _completeFirebaseSignIn(credential);
     } on GoogleSignInException catch (e) {
+      // TEMP DIAGNOSTIC: v7's Credential Manager migration has live,
+      // unresolved upstream reports of spurious `canceled` results after a
+      // real account was actually selected (silent, no error shown -- the
+      // exact symptom reported here) -- logging the real code/description
+      // so a repro actually tells us something, instead of every outcome
+      // looking identical from the UI's perspective. Remove once this is
+      // confirmed stable.
+      debugPrint('GoogleSignInException: code=${e.code} description=${e.description} details=${e.details}');
       if (e.code == GoogleSignInExceptionCode.canceled) {
         // User cancelled the native picker — not an error.
         setState(() => _status = 'idle');

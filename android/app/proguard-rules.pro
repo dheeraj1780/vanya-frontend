@@ -24,3 +24,17 @@
 # with their field names intact — Gson serializes/deserializes them by
 # reflecting on field names, which R8 would otherwise be free to rename.
 -keep class com.dexterous.flutterlocalnotifications.** { *; }
+
+# Firebase Auth + Android Credential Manager + Google Identity Services —
+# added while debugging "[16] Account reauth failed" on the Play Store
+# -distributed build (see git history for the full investigation). Not
+# confirmed as the actual fix (this app's sideloaded release builds,
+# which have the exact same R8 shrinking applied, never showed this
+# failure) but a commonly-cited cause for this class of Credential
+# Manager error elsewhere, cheap to rule out, and consistent with this
+# project's own prior history of R8 silently stripping a reflection-
+# dependent third-party class (see the flutter_local_notifications
+# comment above this one) — worth keeping regardless.
+-keep class com.google.firebase.auth.** { *; }
+-keep class androidx.credentials.** { *; }
+-keep class com.google.android.libraries.identity.googleid.** { *; }

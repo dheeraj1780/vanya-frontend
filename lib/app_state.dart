@@ -209,25 +209,20 @@ class AppState extends ChangeNotifier {
     // deprecated the legacy path this package used to use, so this isn't
     // optional going forward.
     //
-    // Deliberately called with NO arguments -- this used to explicitly
-    // pass serverClientId, but the google_sign_in_android package's own
-    // README is explicit that this is unnecessary (and apparently
-    // conflicting) when using google-services.json + the Gradle-based
-    // registration system, which this project does: "no identifiers need
-    // to be provided in Dart... as long as your google-services.json
-    // contains a web OAuth client entry" (it does — client_type 3). Found
-    // via live-device debugging: passing serverClientId explicitly here
-    // was implicated in "[16] Account reauth failed" on the Play Store
-    // -distributed build specifically (never on our own sideload key) —
-    // this project's google-services.json lists THREE Android OAuth
-    // clients (one per signing key: our upload key, an old test key, and
-    // Play App Signing's own), and manually pinning serverClientId here
-    // may have been short-circuiting Credential Manager's own
-    // signature-based client resolution in a way that only broke for the
-    // non-default entries. Letting the plugin auto-resolve everything
-    // from google-services.json, exactly as documented, is the
-    // straightforward path — not a fallback.
-    await GoogleSignIn.instance.initialize();
+    // serverClientId is the Firebase project's Web OAuth client
+    // (google-services.json, client_type 3) -- re-added explicitly after
+    // a round of testing WITHOUT it (relying on the plugin's documented
+    // auto-detection from google-services.json) still hit
+    // "[16] Account reauth failed" on the Play Store build. With several
+    // Android OAuth clients registered for this package (one per signing
+    // key: upload key, Play App Signing's Classical key, Play App
+    // Signing's Post-Quantum key), auto-detection may be resolving the
+    // wrong one or failing silently -- pinning the Web client explicitly
+    // removes that ambiguity regardless of which Android client the
+    // runtime signature matches.
+    await GoogleSignIn.instance.initialize(
+      serverClientId: '548708201155-khf06pnuf2dhggt7mgveubkv69pamahn.apps.googleusercontent.com',
+    );
     _prefs = await SharedPreferences.getInstance();
     token = _prefs.getString(_sessionKey);
     isGuest = _prefs.getBool(_isGuestKey) ?? false;

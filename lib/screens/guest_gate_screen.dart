@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../api/client.dart';
@@ -19,9 +18,8 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
   bool _linking = false;
   String _errorMessage = '';
 
-  Future<void> _completeLink(fb.AuthCredential credential) async {
+  Future<void> _completeLink(fb.UserCredential userCredential) async {
     final appState = context.read<AppState>();
-    final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
     // See sign_in_screen.dart's _completeFirebaseSignIn for why: a brand-
     // new account's first ID token can be minted just before Firebase
     // finishes populating the profile from the provider credential, so
@@ -81,25 +79,19 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
       _errorMessage = '';
     });
     try {
-      // Forces the real account picker every time, even if Google's SDK
-      // cached a selection from an earlier attempt on this screen —
-      // without this, tapping "Continue with Google" again (e.g. to try
-      // a different account after "already registered") silently reused
-      // the same account, with no picker shown at all.
-      try {
-        await GoogleSignIn.instance.signOut();
-        await GoogleSignIn.instance.disconnect();
-      } catch (_) {
-        // Nothing to sign out of yet (first attempt this session) — fine.
-      }
-      // authenticate() replaces the old signIn() -- throws instead of
-      // returning null on cancellation (see the GoogleSignInException
-      // catch below), and only carries an idToken now, no accessToken.
-      final googleUser = await GoogleSignIn.instance.authenticate();
-      final credential = fb.GoogleAuthProvider.credential(idToken: googleUser.authentication.idToken);
-      await _completeLink(credential);
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) return; // cancelled the picker — `finally` below still resets _linking
+      // Uses Firebase's own browser-based (Chrome Custom Tab) OAuth flow —
+      // see sign_in_screen.dart's _handleGoogle for the full story on why
+      // this replaced google_sign_in's native Credential Manager path.
+      // setCustomParameters forces the account chooser every time (same
+      // job the old signOut()+disconnect()-before-signIn() dance did) —
+      // without it, tapping "Continue with Google" again (e.g. to try a
+      // different account after "already registered") could silently
+      // reuse the same account with no picker shown at all.
+      final provider = fb.GoogleAuthProvider()..setCustomParameters({'prompt': 'select_account'});
+      final userCredential = await fb.FirebaseAuth.instance.signInWithProvider(provider);
+      await _completeLink(userCredential);
+    } on fb.FirebaseAuthException catch (e) {
+      if (e.code == 'web-context-cancelled') return; // cancelled the picker — `finally` below still resets _linking
       setState(() => _errorMessage = 'Could not sign in with Google.');
     } on ApiException catch (err) {
       // err.message is always safe to show verbatim. Previously this
@@ -136,7 +128,8 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
         idToken: appleCredential.identityToken,
         accessToken: appleCredential.authorizationCode,
       );
-      await _completeLink(credential);
+      final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
+      await _completeLink(userCredential);
     } on ApiException catch (err) {
       setState(() => _errorMessage = err.message);
     } catch (e) {

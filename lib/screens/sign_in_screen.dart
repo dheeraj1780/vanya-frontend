@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../api/client.dart';
@@ -40,14 +39,7 @@ class _SignInScreenState extends State<SignInScreen> {
   /// the resulting Firebase ID token to our own backend — same contract
   /// as the web version's signInWithPopup + getIdToken(), just reached via
   /// native SDKs instead of a browser popup.
-  Future<void> _completeFirebaseSignIn(fb.AuthCredential credential) async {
-    // TEMP DIAGNOSTIC: pinpoints which stage a silent "nothing happens, no
-    // error" hang is actually stuck at (Firebase's own signInWithCredential
-    // vs our backend's /auth/signin) -- remove once the v7 migration is
-    // confirmed stable. See the matching log in _handleGoogle.
-    debugPrint('Google sign-in: got idToken, calling Firebase signInWithCredential...');
-    final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
-    debugPrint('Google sign-in: Firebase signInWithCredential succeeded, uid=${userCredential.user?.uid}');
+  Future<void> _completeFirebaseSignIn(fb.UserCredential userCredential) async {
     // BUG (reported: a brand-new Google account's name wasn't getting
     // auto-captured): for a JUST-created account, the ID token minted as
     // part of this very sign-in call can lag one beat behind the user
@@ -60,10 +52,8 @@ class _SignInScreenState extends State<SignInScreen> {
     // before we ever send it to our backend.
     await userCredential.user!.reload();
     final identityToken = await userCredential.user!.getIdToken(true);
-    debugPrint('Google sign-in: got fresh Firebase ID token, calling our backend...');
     if (!mounted) return;
     await _completeSignIn('firebase', identityToken: identityToken);
-    debugPrint('Google sign-in: backend sign-in completed.');
   }
 
   /// Shared by every sign-in path — calls POST /auth/signin, and if the
@@ -95,28 +85,34 @@ class _SignInScreenState extends State<SignInScreen> {
       _errorMessage = '';
     });
     try {
-      // authenticate() replaces the old signIn() -- it throws instead of
-      // returning null on cancellation (see the GoogleSignInException
-      // catch below), and the account it returns no longer carries an
-      // accessToken, only the idToken Firebase actually needs. See
-      // AppState.bootstrap's GoogleSignIn.instance.initialize() call for
-      // why this API (not the old legacy one) is what's in use now.
-      debugPrint('Google sign-in: calling GoogleSignIn.instance.authenticate()...');
-      final googleUser = await GoogleSignIn.instance.authenticate();
-      debugPrint('Google sign-in: authenticate() returned account=${googleUser.email}');
-      final credential = fb.GoogleAuthProvider.credential(idToken: googleUser.authentication.idToken);
-      await _completeFirebaseSignIn(credential);
-    } on GoogleSignInException catch (e) {
-      // TEMP DIAGNOSTIC: v7's Credential Manager migration has live,
-      // unresolved upstream reports of spurious `canceled` results after a
-      // real account was actually selected (silent, no error shown -- the
-      // exact symptom reported here) -- logging the real code/description
-      // so a repro actually tells us something, instead of every outcome
-      // looking identical from the UI's perspective. Remove once this is
-      // confirmed stable.
-      debugPrint('GoogleSignInException: code=${e.code} description=${e.description} details=${e.details}');
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        // User cancelled the native picker — not an error.
+      // Uses Firebase's own browser-based (Chrome Custom Tab) OAuth flow
+      // instead of google_sign_in's native Credential Manager SDK path.
+      // Switched after an extensive, fully-documented live-device
+      // investigation (see git history) found the native path reliably
+      // throwing "[16] Account reauth failed" -- silently mapped to
+      // GoogleSignInExceptionCode.canceled by the plugin, so it looked
+      // like nothing happened -- specifically and only on builds signed
+      // with Play App Signing's key(s), never on our own upload key.
+      // Every configuration cause was ruled out first: SHA-1/256 for both
+      // the Classical and Post-Quantum signing certs, a stale
+      // google-services.json, account-session staleness, a fresh
+      // never-used account, propagation delay, a duplicate/orphaned OAuth
+      // client, missing serverClientId, and R8/ProGuard stripping. This
+      // is a genuine unresolved defect in the native SDK/Credential
+      // Manager integration for this signing scenario, not something
+      // fixable via configuration. signInWithProvider sidesteps that
+      // whole native bridge -- Firebase handles the OAuth exchange itself
+      // via a browser tab, the same mechanism it already uses for
+      // providers with no native SDK at all, and works identically on
+      // iOS too (Apple's ASWebAuthenticationSession). setCustomParameters
+      // forces the account chooser every time, same UX the old
+      // signOut()+disconnect()-before-signIn() dance existed for.
+      final provider = fb.GoogleAuthProvider()..setCustomParameters({'prompt': 'select_account'});
+      final userCredential = await fb.FirebaseAuth.instance.signInWithProvider(provider);
+      await _completeFirebaseSignIn(userCredential);
+    } on fb.FirebaseAuthException catch (e) {
+      if (e.code == 'web-context-cancelled') {
+        // User cancelled/closed the sign-in tab — not an error.
         setState(() => _status = 'idle');
         return;
       }
@@ -158,7 +154,8 @@ class _SignInScreenState extends State<SignInScreen> {
         idToken: appleCredential.identityToken,
         accessToken: appleCredential.authorizationCode,
       );
-      await _completeFirebaseSignIn(oauthCredential);
+      final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(oauthCredential);
+      await _completeFirebaseSignIn(userCredential);
     } on ApiException catch (err) {
       setState(() {
         _status = 'error';

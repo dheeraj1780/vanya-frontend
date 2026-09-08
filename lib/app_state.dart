@@ -201,19 +201,33 @@ class AppState extends ChangeNotifier {
     // google_sign_in 7's GoogleSignIn is a singleton that requires this
     // exactly once, awaited, before any other method on it is called
     // anywhere in the app — see every _handleGoogle/_linkGoogle below,
-    // all of which now assume this has already happened. serverClientId
-    // is the Firebase project's own Web client (google-services.json,
-    // client_type 3) — needed so the idToken this mints is one Firebase's
-    // signInWithCredential can actually verify. Migrated off the old
-    // GoogleSignIn().signIn() legacy API (Credential Manager-based now)
-    // after Google Play Services auth started rejecting the legacy path
-    // with "Failed to record the consent" — confirmed via live logcat on
-    // a real device, not a guess; see the session notes for the full
-    // diagnosis. Google has publicly deprecated the legacy path this
-    // package used to use, so this isn't optional going forward.
-    await GoogleSignIn.instance.initialize(
-      serverClientId: '548708201155-khf06pnuf2dhggt7mgveubkv69pamahn.apps.googleusercontent.com',
-    );
+    // all of which now assume this has already happened. Migrated off the
+    // old GoogleSignIn().signIn() legacy API (Credential Manager-based
+    // now) after Google Play Services auth started rejecting the legacy
+    // path with "Failed to record the consent" — confirmed via live
+    // logcat on a real device, not a guess. Google has publicly
+    // deprecated the legacy path this package used to use, so this isn't
+    // optional going forward.
+    //
+    // Deliberately called with NO arguments -- this used to explicitly
+    // pass serverClientId, but the google_sign_in_android package's own
+    // README is explicit that this is unnecessary (and apparently
+    // conflicting) when using google-services.json + the Gradle-based
+    // registration system, which this project does: "no identifiers need
+    // to be provided in Dart... as long as your google-services.json
+    // contains a web OAuth client entry" (it does — client_type 3). Found
+    // via live-device debugging: passing serverClientId explicitly here
+    // was implicated in "[16] Account reauth failed" on the Play Store
+    // -distributed build specifically (never on our own sideload key) —
+    // this project's google-services.json lists THREE Android OAuth
+    // clients (one per signing key: our upload key, an old test key, and
+    // Play App Signing's own), and manually pinning serverClientId here
+    // may have been short-circuiting Credential Manager's own
+    // signature-based client resolution in a way that only broke for the
+    // non-default entries. Letting the plugin auto-resolve everything
+    // from google-services.json, exactly as documented, is the
+    // straightforward path — not a fallback.
+    await GoogleSignIn.instance.initialize();
     _prefs = await SharedPreferences.getInstance();
     token = _prefs.getString(_sessionKey);
     isGuest = _prefs.getBool(_isGuestKey) ?? false;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../api/client.dart';
@@ -85,34 +86,29 @@ class _SignInScreenState extends State<SignInScreen> {
       _errorMessage = '';
     });
     try {
-      // Uses Firebase's own browser-based (Chrome Custom Tab) OAuth flow
-      // instead of google_sign_in's native Credential Manager SDK path.
-      // Switched after an extensive, fully-documented live-device
-      // investigation (see git history) found the native path reliably
-      // throwing "[16] Account reauth failed" -- silently mapped to
-      // GoogleSignInExceptionCode.canceled by the plugin, so it looked
-      // like nothing happened -- specifically and only on builds signed
-      // with Play App Signing's key(s), never on our own upload key.
-      // Every configuration cause was ruled out first: SHA-1/256 for both
-      // the Classical and Post-Quantum signing certs, a stale
-      // google-services.json, account-session staleness, a fresh
-      // never-used account, propagation delay, a duplicate/orphaned OAuth
-      // client, missing serverClientId, and R8/ProGuard stripping. This
-      // is a genuine unresolved defect in the native SDK/Credential
-      // Manager integration for this signing scenario, not something
-      // fixable via configuration. signInWithProvider sidesteps that
-      // whole native bridge -- Firebase handles the OAuth exchange itself
-      // via a browser tab, the same mechanism it already uses for
-      // providers with no native SDK at all, and works identically on
-      // iOS too (Apple's ASWebAuthenticationSession). setCustomParameters
-      // forces the account chooser every time, same UX the old
-      // signOut()+disconnect()-before-signIn() dance existed for.
-      final provider = fb.GoogleAuthProvider()..setCustomParameters({'prompt': 'select_account'});
-      final userCredential = await fb.FirebaseAuth.instance.signInWithProvider(provider);
+      // Native Credential Manager account picker (in-app, no browser) --
+      // briefly swapped for Firebase's signInWithProvider (browser-based)
+      // while chasing "[16] Account reauth failed" on Play Store builds,
+      // but that turned out to (a) still route through this exact same
+      // native component on Android anyway for the Google provider
+      // specifically, and (b) occasionally fall back to a *broken*
+      // browser-redirect path instead ("missing initial state" --
+      // Firebase's own known sessionStorage bug), which is worse, not
+      // better. The real root cause was that google-services.json /
+      // Firebase never had the "deployment cert" fingerprint registered
+      // -- one of THREE distinct certificates a quantum-ready hybrid
+      // Play App Signing setup actually produces (Classical + Post-
+      // Quantum + a separate deployment cert that's the one Android
+      // reports as the app's real runtime signature), which every prior
+      // fingerprint check had missed. With that registered, this native
+      // path should now work correctly, no browser needed.
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final credential = fb.GoogleAuthProvider.credential(idToken: googleUser.authentication.idToken);
+      final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
       await _completeFirebaseSignIn(userCredential);
-    } on fb.FirebaseAuthException catch (e) {
-      if (e.code == 'web-context-cancelled') {
-        // User cancelled/closed the sign-in tab — not an error.
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        // User cancelled the native picker — not an error.
         setState(() => _status = 'idle');
         return;
       }

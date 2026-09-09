@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../api/client.dart';
@@ -79,19 +80,26 @@ class _GuestGateScreenState extends State<GuestGateScreen> {
       _errorMessage = '';
     });
     try {
-      // Uses Firebase's own browser-based (Chrome Custom Tab) OAuth flow —
+      // Native Credential Manager account picker (in-app, no browser) —
       // see sign_in_screen.dart's _handleGoogle for the full story on why
-      // this replaced google_sign_in's native Credential Manager path.
-      // setCustomParameters forces the account chooser every time (same
-      // job the old signOut()+disconnect()-before-signIn() dance did) —
-      // without it, tapping "Continue with Google" again (e.g. to try a
-      // different account after "already registered") could silently
-      // reuse the same account with no picker shown at all.
-      final provider = fb.GoogleAuthProvider()..setCustomParameters({'prompt': 'select_account'});
-      final userCredential = await fb.FirebaseAuth.instance.signInWithProvider(provider);
+      // this (not Firebase's signInWithProvider) is the one actually in
+      // use. Forces the real account picker every time, even if Google's
+      // SDK cached a selection from an earlier attempt on this screen —
+      // without this, tapping "Continue with Google" again (e.g. to try
+      // a different account after "already registered") silently reused
+      // the same account, with no picker shown at all.
+      try {
+        await GoogleSignIn.instance.signOut();
+        await GoogleSignIn.instance.disconnect();
+      } catch (_) {
+        // Nothing to sign out of yet (first attempt this session) — fine.
+      }
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final credential = fb.GoogleAuthProvider.credential(idToken: googleUser.authentication.idToken);
+      final userCredential = await fb.FirebaseAuth.instance.signInWithCredential(credential);
       await _completeLink(userCredential);
-    } on fb.FirebaseAuthException catch (e) {
-      if (e.code == 'web-context-cancelled') return; // cancelled the picker — `finally` below still resets _linking
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return; // cancelled the picker — `finally` below still resets _linking
       setState(() => _errorMessage = 'Could not sign in with Google.');
     } on ApiException catch (err) {
       // err.message is always safe to show verbatim. Previously this

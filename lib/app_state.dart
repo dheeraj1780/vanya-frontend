@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api/client.dart';
 import 'models/models.dart';
@@ -197,14 +198,16 @@ class AppState extends ChangeNotifier {
   /// session already exists (returning user), skip onboarding entirely.
   Future<void> bootstrap() async {
     api.onSessionExpired = _handleSessionExpired;
-    // NOTE: no google_sign_in package setup here anymore. Google Sign-In
-    // now goes through Firebase's own signInWithProvider (see
-    // sign_in_screen.dart's _handleGoogle for the full story — an
-    // extensive, fully-documented live-device investigation found
-    // google_sign_in's native Credential Manager integration reliably
-    // failing with "[16] Account reauth failed" specifically on Play
-    // Store-distributed builds, after every configuration cause was ruled
-    // out). signInWithProvider needs no init step of its own.
+    // google_sign_in 7's GoogleSignIn is a singleton that requires this
+    // exactly once, awaited, before any other method on it is called
+    // anywhere in the app — see every _handleGoogle/_linkGoogle. No
+    // explicit clientId/serverClientId -- the package auto-detects both
+    // from google-services.json (which now correctly lists every OAuth
+    // client this app's signing certificates map to, including the
+    // "deployment cert" that was the actual missing piece behind
+    // "[16] Account reauth failed" -- see sign_in_screen.dart's
+    // _handleGoogle for the full story).
+    await GoogleSignIn.instance.initialize();
     _prefs = await SharedPreferences.getInstance();
     token = _prefs.getString(_sessionKey);
     isGuest = _prefs.getBool(_isGuestKey) ?? false;
@@ -672,20 +675,38 @@ class AppState extends ChangeNotifier {
     resetTo('signin');
   }
 
-  /// Signs out of Firebase Auth. Used to also sign out of the native
-  /// Google Sign-In SDK's own separate cached session here (its signOut()
-  /// alone wasn't even enough — Google Play Services could still silently
-  /// re-hand back the same account on the next attempt, which is what
-  /// disconnect() was for) — moot now that Google Sign-In goes through
-  /// Firebase's signInWithProvider instead of that native SDK (see
-  /// sign_in_screen.dart's _handleGoogle). Forcing the account chooser is
-  /// now handled per-call via GoogleAuthProvider's setCustomParameters
-  /// instead of a stateful sign-out dance here.
+  /// Signs out of Firebase Auth *and* the native Google Sign-In SDK.
+  /// Firebase's own signOut() does NOT clear Google's cached session — left
+  /// alone, the next "Continue with Google" silently re-picks whichever
+  /// Google account was used last instead of showing the account picker,
+  /// so switching accounts (or just wanting a fresh choice) was impossible
+  /// after logging out. Both best-effort, same reasoning as everywhere
+  /// else in this method: a provider SDK hiccup can't block the sign-out
+  /// the user actually asked for.
   Future<void> _signOutOfProviders() async {
     try {
       await fb.FirebaseAuth.instance.signOut();
     } catch (e) {
       debugPrint('Firebase sign-out failed (proceeding anyway): $e');
+    }
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (e) {
+      debugPrint('Google sign-out failed (proceeding anyway): $e');
+    }
+    // BUG-H001: signOut() alone wasn't enough — Google Play Services on
+    // Android can still silently re-hand back the same account on the next
+    // signIn() call even after signOut(), a known quirk of the plugin/OS
+    // account cache, not something this app controls otherwise. disconnect()
+    // fully revokes the granted OAuth scopes, which reliably forces the real
+    // account chooser (with every Google account on the device, not just the
+    // last-used one) on the next sign-in. Throws if there was never a Google
+    // session to revoke (e.g. a guest or Apple-only user) — safe to ignore,
+    // same tolerance as signOut() above.
+    try {
+      await GoogleSignIn.instance.disconnect();
+    } catch (e) {
+      debugPrint('Google disconnect failed (proceeding anyway): $e');
     }
   }
 

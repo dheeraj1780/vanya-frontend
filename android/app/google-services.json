@@ -38,6 +38,14 @@
           }
         },
         {
+          "client_id": "548708201155-l9r6urqvce3gcuo8io87tpj2i6m9eklm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.plantcompanion.plant_companion",
+            "certificate_hash": "4b76240e69279cfeef38a19a5433844485c0aea2"
+          }
+        },
+        {
           "client_id": "548708201155-khf06pnuf2dhggt7mgveubkv69pamahn.apps.googleusercontent.com",
           "client_type": 3
         }
